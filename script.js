@@ -57,6 +57,7 @@
   const newRecordBadge = document.getElementById("newRecord");
   const newGlobalRecordBadge = document.getElementById("newGlobalRecord");
   const globalScoreEl = document.getElementById("globalScore");
+  const globalHintEl = document.getElementById("globalHint");
   const btnPause = document.getElementById("btnPause");
   const btnSound = document.getElementById("btnSound");
   const btnAmbient = document.getElementById("btnAmbient");
@@ -758,11 +759,20 @@
     globalScoreEl.classList.toggle("pop", false);
   }
 
-  // Empurra a pontuação com throttle ~15s; nunca bloqueia o loop do jogo.
-  function pushGlobalScore(score, level) {
+  // Só publica quem BATE o recorde mundial (com throttle ~15s); nunca bloqueia o loop.
+  async function pushGlobalScore(score, level) {
     if (!lbEnabled() || !(score > 0)) return;
     const now = Date.now();
     if (now - lbLastPush < 15000) return;
+    // busca o recorde atual na hora: só publica quem realmente o bateu
+    let cur;
+    try {
+      const rows = await lbFetch(SUPABASE_URL + "/rest/v1/records?select=score&order=score.desc&limit=1");
+      cur = (Array.isArray(rows) && rows.length && rows[0].score) | 0;
+    } catch (e) { return; } // sem conexão: não dá para saber o recorde, fica local
+    globalRecord = cur;
+    updateGlobalHud();
+    if (score <= cur) return; // não bateu o recorde mundial, não entra no placar
     lbLastPush = now;
     const name = loadNick() || "Jogador";
     fetch(SUPABASE_URL + "/rest/v1/records", {
@@ -776,9 +786,7 @@
       body: JSON.stringify({ name, score: Math.round(score), level: level | 0 })
     }).then(() => {
       loadGlobalLeaderboard();
-      if (globalRecord === null || score >= globalRecord) {
-        showToast("Placar global atualizado!", "Que tal ir atrás do primeiro lugar?");
-      }
+      showToast("Novo recorde mundial!", "Sua pontuação foi publicada no placar global.");
     }).catch(() => { /* sem conexão: fica só local */ });
   }
 
@@ -796,7 +804,7 @@
     if (!globalTop.length) {
       const li = document.createElement("li");
       li.className = "lb-item lb-empty";
-      li.textContent = "Sem internet ou nenhuma pontuação ainda — seja o primeiro!";
+      li.textContent = "Só entra no placar quem bater o recorde mundial — seja o primeiro!";
       list.appendChild(li);
       return;
     }
@@ -1273,6 +1281,12 @@
     // Placar global: badge de superação do recorde mundial + envio com throttle
     const isGlobalRecord = score > 0 && globalRecord !== null && score > globalRecord;
     if (newGlobalRecordBadge) newGlobalRecordBadge.classList.toggle("hidden", !isGlobalRecord);
+    const diff = globalRecord !== null ? globalRecord - score : 0;
+    const showHint = lbEnabled() && globalRecord !== null && score > 0 && diff > 0;
+    if (globalHintEl) {
+      globalHintEl.classList.toggle("hidden", !showHint);
+      if (showHint) globalHintEl.textContent = "Faltam " + diff + " pontos para bater o recorde mundial — bora!";
+    }
     pushGlobalScore(score, level);
 
     // Persiste totais acumulados da partida

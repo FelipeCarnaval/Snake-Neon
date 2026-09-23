@@ -1214,6 +1214,16 @@ body.rm *::after {
   box-shadow: 0 0 22px rgba(251, 191, 36, 0.45);
 }
 
+/* Dica de quanto falta para o recorde mundial (tela de game over) */
+.global-hint {
+  font-size: 0.72rem;
+  color: var(--cyan);
+  letter-spacing: 0.04em;
+  margin: 2px 0 -2px;
+  text-shadow: 0 0 12px rgba(34, 211, 238, 0.25);
+}
+.global-hint.hidden { display: none; }
+
 /* ---------- Nome no placar (configurações) ---------- */
 .setting-row .nick-input {
   position: static;
