@@ -560,14 +560,10 @@ body.no-vfx .canvas-wrapper::before {
 /* ---------- Grade de estatísticas (Game Over) ---------- */
 .stats-grid {
   display: grid;
-  grid-template-columns: repeat(2, 1fr);
+  grid-template-columns: repeat(auto-fit, minmax(82px, 1fr));
   gap: 8px;
   width: 100%;
   max-width: 330px;
-}
-
-@media (min-width: 430px) {
-  .stats-grid { grid-template-columns: repeat(3, 1fr); }
 }
 
 .stat {
@@ -1057,4 +1053,62 @@ body.rm *::after {
   .btn { padding: 10px 16px; font-size: 0.85rem; }
   .toast-stack { right: 10px; bottom: 10px; max-width: 72vw; }
   .chip-text { font-size: 0.58rem; }
+
+  /* Overlay cabe dentro do tabuleiro quadrado (fixa o botão cortado no mobile) e,
+     se a tela for baixíssima, rola internamente em vez de cortar conteúdo. */
+  .overlay { gap: 10px; padding: 14px 12px; overflow-y: auto; overscroll-behavior: contain; }
+  .overlay-title.small { font-size: clamp(1.15rem, 5.5vw, 1.5rem); }
+  .badge { padding: 4px 12px; font-size: 0.6rem; }
+  .final-score { font-size: clamp(1.9rem, 9vw, 2.7rem); }
+  .stats-grid { gap: 6px; max-width: 300px; }
+  .stat { padding: 6px 7px; margin-bottom: 2px; }
+  .stat .sl { font-size: 0.68rem; }
+  .stat .sv { font-size: 1.05rem; }
+  .overlay .btn { padding: 10px 22px; }
+}
+
+@media (max-width: 360px) {
+  .score-box { min-width: 50px; padding: 4px 7px; }
+  .score-box .value { font-size: 0.95rem; }
+  .icon-btn { width: 32px; height: 34px; }
+}
+
+/* Celulares em paisagem: o tabuleiro vive da altura e o d-pad sai da frente */
+@media (orientation: landscape) and (max-height: 560px) {
+  body { padding: 10px; }
+  .game-container { width: min(92vw, calc(100svh - 130px)); }
+  .hud { gap: 8px; }
+  .logo { font-size: clamp(0.85rem, 3vw, 1.1rem); letter-spacing: 0.18em; }
+  .score-box { min-width: 50px; padding: 4px 8px; }
+  .score-box .value { font-size: 0.95rem; }
+  .icon-btn { width: 30px; height: 32px; }
+  .controls-bar { gap: 8px; }
+  .hint { display: none; }
+  .overlay { gap: 8px; padding: 10px; }
+  .stats-grid { gap: 6px; max-width: 300px; }
+}
+
+/* Em paisagem + toque: separa uma coluna à direita para o d-pad e ajusta o tabuleiro */
+@media (orientation: landscape) and (max-height: 560px) and (pointer: coarse) {
+  .game-container { width: min(calc(100vw - 250px), calc(100svh - 128px)); }
+  .touch-controls {
+    left: auto;
+    right: max(10px, env(safe-area-inset-right));
+    bottom: 50%;
+    transform: translateY(50%);
+    flex-direction: column;
+    align-items: flex-end;
+    justify-content: flex-start;
+    gap: 12px;
+  }
+  .tc-pad { gap: 5px; }
+  .t-btn { width: 46px; height: 46px; }
+  .tp-pause { width: 48px; height: 48px; }
+}
+
+/* Celulares baixos em pé: d-pad um pouco mais enxuto para não cobrir os botões */
+@media (orientation: portrait) and (max-height: 560px) and (pointer: coarse) {
+  .tc-pad { gap: 5px; }
+  .t-btn { width: 46px; height: 46px; }
+  .tp-pause { width: 48px; height: 48px; }
 }
