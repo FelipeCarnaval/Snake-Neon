@@ -1137,3 +1137,63 @@ body.rm *::after {
     justify-content: safe center;
   }
 }
+
+/* ---------- Ações do overlay (jogar novamente + compartilhar) ---------- */
+.overlay-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  width: 100%;
+}
+.overlay-actions .btn { flex: none; width: 100%; }
+
+/* ---------- Galeria de conquistas (configurações) ---------- */
+.settings-achievements {
+  margin-top: 14px;
+  padding-top: 12px;
+  border-top: 1px solid rgba(140, 165, 195, 0.1);
+}
+.settings-achievements h3 {
+  font-family: "Orbitron", sans-serif;
+  font-size: 0.7rem;
+  letter-spacing: 0.14em;
+  color: var(--muted);
+  margin-bottom: 10px;
+}
+.ach-list {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.ach-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 8px 10px;
+  border-radius: var(--r-sm);
+  background: rgba(13, 23, 36, 0.5);
+  border: 1px solid rgba(140, 165, 195, 0.08);
+}
+.ach-item .ach-check {
+  flex-shrink: 0;
+  width: 18px;
+  height: 18px;
+  margin-top: 1px;
+  border-radius: 50%;
+  border: 1.5px solid rgba(140, 165, 195, 0.35);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.62rem;
+  color: transparent;
+}
+.ach-item.done .ach-check {
+  border-color: var(--lime);
+  background: rgba(163, 230, 53, 0.12);
+  color: var(--lime);
+}
+.ach-item .ach-t { display: flex; flex-direction: column; gap: 1px; text-align: left; }
+.ach-item strong { font-size: 0.8rem; color: var(--text); }
+.ach-item small { font-size: 0.68rem; color: var(--muted); }
+.ach-item.locked { opacity: 0.42; filter: saturate(0.35); }

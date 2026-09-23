@@ -62,6 +62,8 @@
   const levelBanner = document.getElementById("levelBanner");
   const levelBannerNum = document.getElementById("levelBannerNum");
   const countdownEl = document.getElementById("countdown");
+  const btnPlayAgain = document.getElementById("btnPlayAgain");
+  const btnShare = document.getElementById("btnShare");
   // Estrelas determinísticas do fundo (3 camadas de parallax)
   const starField = Array.from({ length: 110 }, (_, i) => ({
     x: ((i * 137) % 173) / 173,
@@ -686,6 +688,7 @@
   let overAt = 0;          // timestamp da morte (slow-motion da explosão)
   let lastChewAt = -9999;  // último instante em que a cobra comeu (squash da cabeça)
   let energyPulseAt = -9999; // último pulso de energia disparado ao comer
+  let shareText = "";      // resultado da partida pronto para compartilhar
 
   highScore = storage.get();
   highScoreEl.textContent = highScore;
@@ -981,6 +984,7 @@
     document.getElementById("statTime").textContent = fmtTime(runMs);
     document.getElementById("statCombo").textContent = runMaxStreak;
     document.getElementById("statFoods").textContent = runEaten;
+    shareText = `Consegui ${score} pontos no SNAKE — nível ${level} e ${finalLen} segmentos!`;
   }
 
   // Totais acumulados (painel de configurações)
@@ -1106,6 +1110,10 @@
     setTimeout(() => {
       if (state === "over" && token === deathToken) {
         showOverlay(overlayGameOver);
+        // Foco vai para o primeiro botão: leitores de tela anunciam o fim da partida
+        if (btnPlayAgain && btnPlayAgain.focus) {
+          try { btnPlayAgain.focus({ preventScroll: true }); } catch (e) { btnPlayAgain.focus(); }
+        }
       }
     }, 650);
   }
@@ -1165,7 +1173,10 @@
 
   window.addEventListener("keydown", (e) => {
     const k = e.key.toLowerCase();
-    if (settingsOpen() && k !== "escape") return; // modal ativo: só o Escape passa
+    if (settingsOpen() && k !== "escape") {
+      if (k === "tab") trapSettingsTab(e); // mantém o foco preso no dialog enquanto aberto
+      return;
+    }
     if (["arrowup", "arrowdown", "arrowleft", "arrowright", " "].includes(k)) e.preventDefault();
     switch (k) {
       case "escape":
@@ -1231,6 +1242,7 @@
     if (state === "playing" || state === "resuming") togglePause(); // pausa antes de configurar
     syncSettingsControls();
     fillTotals();
+    fillAchievements();
     lastFocused = document.activeElement;
     settingsBackdrop.classList.remove("hidden");
     requestAnimationFrame(() => settingsBackdrop.classList.add("open"));
@@ -1254,6 +1266,70 @@
     optMotion.addEventListener("change", () => { reducedMotion = optMotion.checked; savePref(RM_KEY, reducedMotion); applyFxPrefs(); });
     optSfxVol.addEventListener("input", () => setSfxVol(optSfxVol.valueAsNumber));
     optMusicVol.addEventListener("input", () => setMusicVol(optMusicVol.valueAsNumber));
+  }
+
+  // Mantém o Tab circulando dentro do dialog de configurações (focus trap)
+  function trapSettingsTab(e) {
+    if (!settingsBackdrop) return;
+    const focusables = settingsBackdrop.querySelectorAll('button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])');
+    const list = Array.prototype.filter.call(focusables, (el) => !el.disabled && el.offsetWidth > 0);
+    if (list.length < 2) return;
+    const first = list[0], last = list[list.length - 1];
+    if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last.focus(); }
+    else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
+  }
+
+  // Galeria de conquistas desbloqueadas (painel de configurações)
+  function fillAchievements() {
+    const list = document.getElementById("achievementsList");
+    if (!list) return;
+    list.textContent = "";
+    for (const a of ACHIEVEMENTS) {
+      const li = document.createElement("li");
+      li.className = "ach-item" + (unlocked[a.id] ? " done" : " locked");
+      const check = document.createElement("span");
+      check.className = "ach-check";
+      check.setAttribute("aria-hidden", "true");
+      check.textContent = unlocked[a.id] ? "✓" : "";
+      const t = document.createElement("span");
+      t.className = "ach-t";
+      const n = document.createElement("strong");
+      n.textContent = a.name;
+      const d = document.createElement("small");
+      d.textContent = a.desc;
+      t.appendChild(n);
+      t.appendChild(d);
+      li.appendChild(check);
+      li.appendChild(t);
+      list.appendChild(li);
+    }
+  }
+
+  // Compartilhar resultado: Web Share API com fallback para copiar o link
+  async function shareResult() {
+    const text = shareText || `Consegui ${finalScoreEl ? finalScoreEl.textContent : "0"} pontos no SNAKE!`;
+    const url = typeof location !== "undefined" ? location.href : "";
+    if (typeof navigator !== "undefined" && navigator.share) {
+      try { await navigator.share({ title: "Snake Neon — Jogo da Cobrinha", text, url }); }
+      catch (e) { /* usuário cancelou */ }
+    } else if (typeof navigator !== "undefined" && navigator.clipboard && navigator.clipboard.writeText) {
+      try {
+        await navigator.clipboard.writeText(text + (url ? " — " + url : ""));
+        showToast("Link copiado", "Cole onde quiser compartilhar");
+      } catch (e) {
+        showToast("Não foi possível copiar", "Copie a URL manualmente");
+      }
+    } else {
+      showToast("Não foi possível compartilhar", "Copie a URL manualmente");
+    }
+  }
+  if (btnShare) btnShare.addEventListener("click", () => { shareResult(); });
+
+  // PWA: cache offline do app shell (desktop e celular)
+  if (typeof navigator !== "undefined" && "serviceWorker" in navigator) {
+    window.addEventListener("load", () => {
+      navigator.serviceWorker.register("sw.js").catch(() => { /* offline indisponível */ });
+    });
   }
 
   // Suporte a swipe (mobile)
