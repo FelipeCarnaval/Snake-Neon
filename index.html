@@ -1,0 +1,214 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <meta name="theme-color" content="#070d17" />
+  <meta name="theme-color" content="#070b14" />
+  <meta name="color-scheme" content="dark" />
+  <title>Snake — Jogo da Cobrinha</title>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%23070b14'/%3E%3Cpath d='M6 22C6 12 12 7 20 7c3 0 5 1 6 3-4 1-6 3-6 6 0 3 2 4 3 3-2 4-7 5-11 3l2 3-6-1 0-2z' fill='%23a3e635'/%3E%3Ccircle cx='23' cy='12' r='1.6' fill='%23f8fafc'/%3E%3C/svg%3E" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700;900&family=Rubik:wght@400;600&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <main class="game-container">
+    <header class="hud">
+      <div class="logo" aria-hidden="true" translate="no">SNAKE</div>
+      <div class="hud-right">
+        <div class="scores">
+          <div class="score-box" id="scoreBox">
+            <span class="label">Pontos</span>
+            <span class="value" id="score">0</span>
+          </div>
+          <div class="score-box best">
+            <span class="label">Recorde</span>
+            <span class="value" id="highScore">0</span>
+          </div>
+          <div class="score-box level">
+            <span class="label">Nível</span>
+            <span class="value" id="level">1</span>
+            <div class="level-bar"><span class="level-fill" id="levelFill"></span></div>
+          </div>
+        </div>
+        <button class="icon-btn" id="btnSound" aria-label="Ativar ou desativar os efeitos sonoros" aria-pressed="true" title="Efeitos sonoros">
+          <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M11 5 6 9H3v6h3l5 4V5z" fill="currentColor" stroke="none" />
+            <g class="waves">
+              <path d="M15.5 8.5a5 5 0 0 1 0 7" />
+              <path d="M18.2 5.8a9 9 0 0 1 0 12.4" />
+            </g>
+            <g class="slashed">
+              <line x1="16" y1="9.5" x2="21.5" y2="15" />
+              <line x1="21.5" y1="9.5" x2="16" y2="15" />
+            </g>
+          </svg>
+        </button>
+        <button class="icon-btn" id="btnAmbient" aria-label="Ativar ou desativar a música ambiente" aria-pressed="true" title="Música ambiente">
+          <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M9 18V5l10-2v12" />
+            <circle cx="6.5" cy="18" r="2.5" />
+            <circle cx="16.5" cy="15" r="2.5" />
+            <g class="slashed">
+              <line x1="3.5" y1="3.5" x2="20.5" y2="20.5" />
+            </g>
+          </svg>
+        </button>
+        <button class="icon-btn" id="btnSettings" aria-label="Abrir configurações" title="Configurações">
+          <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <circle cx="12" cy="12" r="3.2" />
+            <path d="M19.4 13.5c.05-.5.08-1 .08-1.5s-.03-1-.08-1.5l2-1.55a.6.6 0 0 0 .15-.8l-1.9-3.2a.6.6 0 0 0-.75-.25l-2.35.95a7.5 7.5 0 0 0-2.6-1.5L13.5 1.9a.6.6 0 0 0-.6-.5h-3.8a.6.6 0 0 0-.6.5L8.05 4.6a7.5 7.5 0 0 0-2.6 1.5l-2.35-.95a.6.6 0 0 0-.75.25l-1.9 3.2a.6.6 0 0 0 .15.8l2 1.55c-.05.5-.08 1-.08 1.5s.03 1 .08 1.5l-2 1.55a.6.6 0 0 0-.15.8l1.9 3.2c.14.24.46.33.75.25l2.35-.95c.8.63 1.67 1.13 2.6 1.5l.45 2.66c.05.28.3.5.6.5h3.8c.3 0 .55-.22.6-.5l.45-2.6a7.5 7.5 0 0 0 2.6-1.5l2.35.95c.29.12.61-.01.75-.25l1.9-3.2a.6.6 0 0 0-.15-.8l-2-1.55z" />
+          </svg>
+        </button>
+      </div>
+    </header>
+
+    <div class="canvas-wrapper" id="canvasWrapper">
+      <canvas id="game" role="img" aria-label="Tabuleiro do jogo da cobrinha"></canvas>
+
+      <div class="chip combo-chip hidden" id="comboChip" aria-hidden="true">
+        <span class="chip-text" id="comboText">Combo 2 ×1.25</span>
+        <span class="chip-bar"><span class="chip-fill" id="comboBarFill"></span></span>
+      </div>
+
+      <div class="chip speed-chip hidden" id="speedChip" aria-hidden="true">
+        <svg viewBox="0 0 24 24" width="12" height="12" fill="currentColor" aria-hidden="true"><path d="M13 2 4 14h6l-1 8 9-12h-6l1-8z" /></svg>
+        <span class="chip-text" id="speedTime">5s</span>
+      </div>
+
+      <div class="level-banner" id="levelBanner" aria-hidden="true">
+        <span class="level-banner-label">Nível</span>
+        <strong class="level-banner-num" id="levelBannerNum">2</strong>
+      </div>
+      <div class="countdown hidden" id="countdown" aria-hidden="true">3</div>
+
+      <div class="overlay" id="overlayStart">
+        <h1 class="overlay-title">SNAKE</h1>
+        <p class="overlay-text">Coma, cresça e sobreviva.<br />Não bata nas paredes nem em você mesmo.</p>
+        <button class="btn primary" id="btnStart">Jogar</button>
+        <p class="overlay-hint">Setas ou WASD movem a cobra. Espaço pausa.<br />No celular, deslize o dedo.</p>
+      </div>
+
+      <div class="overlay hidden" id="overlayPause">
+        <h2 class="overlay-title small">PAUSADO</h2>
+        <p class="overlay-text">Pressione espaço ou toque em continuar</p>
+        <button class="btn primary" id="btnResume">Continuar</button>
+      </div>
+
+      <div class="overlay hidden" id="overlayGameOver">
+        <h2 class="overlay-title small danger">FIM DE JOGO</h2>
+        <span class="badge hidden" id="newRecord">NOVO RECORDE</span>
+        <p class="final-score" id="finalScore">0</p>
+        <div class="stats-grid">
+          <div class="stat"><span class="sl">Recorde</span><span class="sv" id="statRecord">0</span></div>
+          <div class="stat"><span class="sl">Nível</span><span class="sv" id="statLevel">1</span></div>
+          <div class="stat"><span class="sl">Tamanho</span><span class="sv" id="statSize">3</span></div>
+          <div class="stat"><span class="sl">Tempo</span><span class="sv" id="statTime">0:00</span></div>
+          <div class="stat"><span class="sl">Combo máx.</span><span class="sv" id="statCombo">0 (×1)</span></div>
+          <div class="stat"><span class="sl">Maçãs</span><span class="sv" id="statFoods">0</span></div>
+        </div>
+        <button class="btn primary" id="btnPlayAgain">Jogar novamente</button>
+      </div>
+    </div>
+
+    <div class="controls-bar">
+      <button class="btn ghost" id="btnPause">Pausar</button>
+      <button class="btn ghost" id="btnRestart">Reiniciar</button>
+    </div>
+
+    <p class="hint">Setas ou WASD movem. Espaço pausa. No celular, deslize.</p>
+  </main>
+
+  <div class="touch-controls" id="touchControls">
+    <div class="tc-pad">
+      <button class="t-btn" id="btnUp" style="grid-area: up" aria-label="Mover para cima">
+        <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 15 6-6 6 6" /></svg>
+      </button>
+      <button class="t-btn" id="btnLeft" style="grid-area: left" aria-label="Mover para a esquerda">
+        <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m15 6-6 6 6 6" /></svg>
+      </button>
+      <button class="t-btn" id="btnRight" style="grid-area: right" aria-label="Mover para a direita">
+        <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 6 6 6-6 6" /></svg>
+      </button>
+      <button class="t-btn" id="btnDown" style="grid-area: down" aria-label="Mover para baixo">
+        <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6" /></svg>
+      </button>
+    </div>
+    <button class="t-btn tp-pause" id="btnPauseTouch" aria-label="Pausar ou continuar">
+      <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><path d="M9 5v14" /><path d="M15 5v14" /></svg>
+    </button>
+  </div>
+
+  <div class="settings-backdrop hidden" id="settingsBackdrop">
+    <section class="settings-panel" role="dialog" aria-modal="true" aria-labelledby="settingsTitle">
+      <div class="settings-head">
+        <h2 id="settingsTitle">Configurações</h2>
+        <button class="icon-btn sm" id="btnCloseSettings" aria-label="Fechar configurações">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12" /><path d="M18 6 6 18" /></svg>
+        </button>
+      </div>
+      <div class="settings-list">
+        <label class="setting-row">
+          <span class="s-main"><strong>Efeitos sonoros</strong><small>Sons de comer, virar, game over</small></span>
+          <input type="checkbox" id="optSound" />
+          <span class="switch" aria-hidden="true"></span>
+        </label>
+        <label class="setting-row">
+          <span class="s-main"><strong>Música ambiente</strong><small>Trilha procedural de fundo</small></span>
+          <input type="checkbox" id="optMusic" />
+          <span class="switch" aria-hidden="true"></span>
+        </label>
+        <label class="setting-row">
+          <span class="s-main"><strong>Partículas</strong><small>Explosões, estrelas e faíscas</small></span>
+          <input type="checkbox" id="optParticles" />
+          <span class="switch" aria-hidden="true"></span>
+        </label>
+        <label class="setting-row">
+          <span class="s-main"><strong>Efeitos visuais</strong><small>Glows, biomas, rastro, pulsações</small></span>
+          <input type="checkbox" id="optVisual" />
+          <span class="switch" aria-hidden="true"></span>
+        </label>
+        <label class="setting-row">
+          <span class="s-main"><strong>Reduzir movimento</strong><small>Menos animações e flashes</small></span>
+          <input type="checkbox" id="optMotion" />
+          <span class="switch" aria-hidden="true"></span>
+        </label>
+        <label class="vol-row">
+          <span class="vol-head">
+            <span class="s-main"><strong>Volume efeitos</strong><small>0% = mudo</small></span>
+            <strong class="vol-val" id="sfxVolVal">100%</strong>
+          </span>
+          <input type="range" min="0" max="100" step="1" value="100" id="optSfxVol" aria-label="Volume dos efeitos sonoros" />
+        </label>
+        <label class="vol-row">
+          <span class="vol-head">
+            <span class="s-main"><strong>Volume trilha</strong><small>0% = mudo</small></span>
+            <strong class="vol-val" id="musicVolVal">60%</strong>
+          </span>
+          <input type="range" min="0" max="100" step="1" value="60" id="optMusicVol" aria-label="Volume da trilha ambiente" />
+        </label>
+      </div>
+      <div class="settings-totals">
+        <h3>Estatísticas totais</h3>
+        <div class="totals-grid">
+          <div class="trow"><span>Partidas</span><strong id="totGames">0</strong></div>
+          <div class="trow"><span>Maior pontuação</span><strong id="totBest">0</strong></div>
+          <div class="trow"><span>Maior combo</span><strong id="totCombo">0</strong></div>
+          <div class="trow"><span>Maior nível</span><strong id="totLevel">1</strong></div>
+          <div class="trow"><span>Maior tamanho</span><strong id="totSize">3</strong></div>
+          <div class="trow"><span>Tempo jogado</span><strong id="totTime">0:00</strong></div>
+          <div class="trow"><span>Maçãs comidas</span><strong id="totFoods">0</strong></div>
+          <div class="trow"><span>Gemas douradas</span><strong id="totGold">0</strong></div>
+          <div class="trow"><span>Turbos usados</span><strong id="totTurbo">0</strong></div>
+        </div>
+      </div>
+    </section>
+  </div>
+
+  <div class="toast-stack" id="toastStack" aria-live="polite"></div>
+
+  <script src="script.js"></script>
+</body>
+</html>
