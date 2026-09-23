@@ -23,6 +23,26 @@
   const BIOME_NAMES = ["", "Abismo Violeta", "Gelo Profundo", "Cinzas Âmbar", "Vulcão Carmesim"];
   const STORAGE_KEY = "snakeHighScore";
 
+  /* ====== Placar global (online) ======
+     Backend: Supabase grátis (supabase.com). Crie um projeto, rode o SQL abaixo em
+     "SQL Editor", e cole em SUPABASE_URL a URL do projeto e em SUPABASE_ANON a
+     "anon public" key (Settings > API > Project keys). Sem isso o jogo funciona
+     100% offline com recorde local.
+
+     create table if not exists records (
+       id bigint generated always as identity primary key,
+       name text not null default 'Jogador',
+       score integer not null,
+       level integer not null default 1,
+       created_at timestamptz not null default now()
+     );
+     alter table records enable row level security;
+     create policy "read" on records for select using (true);
+     create policy "insert" on records for insert with check (true);
+  */
+  const SUPABASE_URL = "https://qnwtfcgyjaavazwklqge.supabase.co";
+  const SUPABASE_ANON = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFud3RmY2d5amFhdmF6d2tscWdlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTAyMDE5MzIsImV4cCI6MjEwNTc3NzkzMn0.2nROMgfQlgRfY15-SMP4UV39jaypLiZLKR5CFxgPxM0";
+
   /* ================= Elementos ================= */
   const canvas = document.getElementById("game");
   const ctx = canvas.getContext("2d");
@@ -35,6 +55,8 @@
   const overlayGameOver = document.getElementById("overlayGameOver");
   const finalScoreEl = document.getElementById("finalScore");
   const newRecordBadge = document.getElementById("newRecord");
+  const newGlobalRecordBadge = document.getElementById("newGlobalRecord");
+  const globalScoreEl = document.getElementById("globalScore");
   const btnPause = document.getElementById("btnPause");
   const btnSound = document.getElementById("btnSound");
   const btnAmbient = document.getElementById("btnAmbient");
@@ -54,6 +76,7 @@
   const optMusicVol = document.getElementById("optMusicVol");
   const sfxVolVal = document.getElementById("sfxVolVal");
   const musicVolVal = document.getElementById("musicVolVal");
+  const optNick = document.getElementById("optNick");
   const comboChip = document.getElementById("comboChip");
   const comboText = document.getElementById("comboText");
   const comboBarFill = document.getElementById("comboBarFill");
@@ -664,6 +687,147 @@
   const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
   const lerp = (a, b, t) => a + (b - a) * t;
 
+  /* ================= Placar global ================= */
+  const LB_NAME_KEY = "snakeNick";
+  const lbCacheKey = "snakeTop";
+  let globalRecord = null; // null = desconhecido/sem backend
+  let globalTop = [];
+  let lbLastPush = 0;
+
+  function lbEnabled() {
+    if (!SUPABASE_URL || !SUPABASE_ANON || typeof fetch === "undefined") return false;
+    try { return true; } catch (e) { return false; }
+  }
+  function loadNick() {
+    try { return (localStorage.getItem(LB_NAME_KEY) || "").trim().slice(0, 12); }
+    catch (e) { return ""; }
+  }
+  function saveNick(v) {
+    try { localStorage.setItem(LB_NAME_KEY, String(v || "").trim().slice(0, 12)); }
+    catch (e) { /* armazenamento indisponível */ }
+  }
+
+  async function lbFetch(path, opts) {
+    const headers = Object.assign({
+      apikey: SUPABASE_ANON,
+      Authorization: "Bearer " + SUPABASE_ANON,
+      Accept: "application/json"
+    }, opts && opts.headers);
+    const res = await fetch(path, Object.assign({ headers }, opts));
+    if (!res.ok) throw new Error("HTTP " + res.status);
+    if (opts && opts.method && opts.method !== "GET") return;
+    return res.json();
+  }
+
+  async function loadGlobalLeaderboard() {
+    if (!lbEnabled()) { renderLeaderboard(); return; }
+    try {
+      const rows = await lbFetch(
+        SUPABASE_URL + "/rest/v1/records?select=name,score,level,created_at&order=score.desc&limit=12"
+      );
+      if (Array.isArray(rows)) {
+        globalTop = rows.map(r => ({
+          name: String(r.name || "Jogador").slice(0, 12),
+          score: Math.max(0, r.score | 0),
+          level: Math.max(1, r.level | 0),
+          date: r.created_at || null
+        }));
+        globalRecord = globalTop.length ? globalTop[0].score : 0;
+        try { localStorage.setItem(lbCacheKey, JSON.stringify({ top: globalTop, at: Date.now() })); }
+        catch (e) { /* offline */ }
+        updateGlobalHud();
+        renderLeaderboard();
+      }
+    } catch (e) {
+      // offline/inoperante: mantém o que cacheou da última vez
+      try {
+        const cached = JSON.parse(localStorage.getItem(lbCacheKey) || "null");
+        if (cached && Array.isArray(cached.top) && cached.top.length) {
+          globalTop = cached.top;
+          globalRecord = globalTop[0].score;
+          updateGlobalHud();
+          renderLeaderboard();
+        }
+      } catch (e2) { /* sem cache */ }
+    }
+  }
+
+  function updateGlobalHud() {
+    if (!globalScoreEl) return;
+    globalScoreEl.textContent = globalRecord === null ? "—" : String(globalRecord);
+    globalScoreEl.classList.toggle("pop", false);
+  }
+
+  // Empurra a pontuação com throttle ~15s; nunca bloqueia o loop do jogo.
+  function pushGlobalScore(score, level) {
+    if (!lbEnabled() || !(score > 0)) return;
+    const now = Date.now();
+    if (now - lbLastPush < 15000) return;
+    lbLastPush = now;
+    const name = loadNick() || "Jogador";
+    fetch(SUPABASE_URL + "/rest/v1/records", {
+      method: "POST",
+      headers: {
+        apikey: SUPABASE_ANON,
+        Authorization: "Bearer " + SUPABASE_ANON,
+        "Content-Type": "application/json",
+        Prefer: "return=minimal"
+      },
+      body: JSON.stringify({ name, score: Math.round(score), level: level | 0 })
+    }).then(() => {
+      loadGlobalLeaderboard();
+      if (globalRecord === null || score >= globalRecord) {
+        showToast("Placar global atualizado!", "Que tal ir atrás do primeiro lugar?");
+      }
+    }).catch(() => { /* sem conexão: fica só local */ });
+  }
+
+  function renderLeaderboard() {
+    const list = document.getElementById("leaderboardList");
+    if (!list) return;
+    list.textContent = "";
+    if (!lbEnabled()) {
+      const li = document.createElement("li");
+      li.className = "lb-item lb-empty";
+      li.textContent = "Placar online desativado: cole as chaves do Supabase em script.js.";
+      list.appendChild(li);
+      return;
+    }
+    if (!globalTop.length) {
+      const li = document.createElement("li");
+      li.className = "lb-item lb-empty";
+      li.textContent = "Sem internet ou nenhuma pontuação ainda — seja o primeiro!";
+      list.appendChild(li);
+      return;
+    }
+    const medals = ["lb-gold", "lb-silver", "lb-bronze"];
+    globalTop.slice(0, 10).forEach((r, i) => {
+      const li = document.createElement("li");
+      li.className = "lb-item";
+      const rank = document.createElement("span");
+      rank.className = "lb-rank" + (medals[i] ? " " + medals[i] : "");
+      rank.textContent = "#" + (i + 1);
+      const name = document.createElement("span");
+      name.className = "lb-name";
+      name.textContent = r.name;
+      const lvl = document.createElement("span");
+      lvl.className = "lb-level";
+      lvl.textContent = "Nv " + r.level;
+      const meta = document.createElement("small");
+      meta.className = "lb-meta";
+      meta.textContent = r.date ? new Date(r.date).toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" }) : "";
+      li.appendChild(rank);
+      li.appendChild(name);
+      li.appendChild(meta);
+      li.appendChild(lvl);
+      const pts = document.createElement("strong");
+      pts.className = "lb-score";
+      pts.textContent = r.score;
+      li.appendChild(pts);
+      list.appendChild(li);
+    });
+  }
+
   /* ================= Estado ================= */
   let snake, prevSnake, dir, inputQueue;
   let food, foodBornAt;
@@ -754,7 +918,7 @@
     // Colisão com obstáculo
     if (obstacles.some(o => o.x === head.x && o.y === head.y)) return gameOver();
 
-    const grows = head.x === food.x && head.y === food.y;
+    const grows = food !== null && head.x === food.x && head.y === food.y;
     // Se não for crescer, a cauda sairá do caminho: não conta como colisão
     const body = grows ? snake : snake.slice(0, -1);
     if (body.some(s => s.x === head.x && s.y === head.y)) return gameOver();
@@ -815,13 +979,24 @@
   }
 
   function placeFood(forcePlain) {
-    let p;
+    let p = null;
     const occupied = (x, y) =>
       snake.some(s => s.x === x && s.y === y) ||
       obstacles.some(o => o.x === x && o.y === y);
-    do {
-      p = { x: (Math.random() * GRID) | 0, y: (Math.random() * GRID) | 0 };
-    } while (occupied(p.x, p.y));
+    // Até 50 sorteios aleatórios; se não achar, varre a grade inteira.
+    // Se não houver nenhuma célula livre (cobra preencheu o tabuleiro), food = null.
+    for (let i = 0; i < 50; i++) {
+      const c = { x: (Math.random() * GRID) | 0, y: (Math.random() * GRID) | 0 };
+      if (!occupied(c.x, c.y)) { p = c; break; }
+    }
+    if (!p) {
+      for (let y = 0; y < GRID && !p; y++) {
+        for (let x = 0; x < GRID && !p; x++) {
+          if (!occupied(x, y)) p = { x, y };
+        }
+      }
+    }
+    if (!p) { food = null; return; } // tabuleiro 100% cheio
     let kind = "apple";
     if (!forcePlain) {
       const r = Math.random();
@@ -982,7 +1157,7 @@
     document.getElementById("statLevel").textContent = level;
     document.getElementById("statSize").textContent = finalLen;
     document.getElementById("statTime").textContent = fmtTime(runMs);
-    document.getElementById("statCombo").textContent = runMaxStreak;
+    document.getElementById("statCombo").textContent = runMaxStreak + " (×" + fmtMult(comboMult(runMaxStreak)) + ")";
     document.getElementById("statFoods").textContent = runEaten;
     shareText = `Consegui ${score} pontos no SNAKE — nível ${level} e ${finalLen} segmentos!`;
   }
@@ -1095,6 +1270,11 @@
     if (isRecord) setTimeout(() => sfx.record(), 700);
     checkAchievements({ totalEaten: stats.eaten, level, record: isRecord });
 
+    // Placar global: badge de superação do recorde mundial + envio com throttle
+    const isGlobalRecord = score > 0 && globalRecord !== null && score > globalRecord;
+    if (newGlobalRecordBadge) newGlobalRecordBadge.classList.toggle("hidden", !isGlobalRecord);
+    pushGlobalScore(score, level);
+
     // Persiste totais acumulados da partida
     stats.games++;
     stats.best = Math.max(stats.best, score);
@@ -1161,7 +1341,7 @@
 
   function queueDirection(nx, ny) {
     if (state === "ready") startGame();
-    if (state !== "playing") return;
+    if (state !== "playing" && state !== "resuming") return; // resuming: deixa "virar" já no 3·2·1
     const last = inputQueue.length ? inputQueue[inputQueue.length - 1] : dir;
     // Bloqueia movimento reverso e direção repetida
     if ((last.x === nx && last.y === ny) || (last.x === -nx && last.y === -ny)) return;
@@ -1243,6 +1423,9 @@
     syncSettingsControls();
     fillTotals();
     fillAchievements();
+    if (optNick) optNick.value = loadNick();
+    renderLeaderboard();
+    loadGlobalLeaderboard();
     lastFocused = document.activeElement;
     settingsBackdrop.classList.remove("hidden");
     requestAnimationFrame(() => settingsBackdrop.classList.add("open"));
@@ -1266,6 +1449,7 @@
     optMotion.addEventListener("change", () => { reducedMotion = optMotion.checked; savePref(RM_KEY, reducedMotion); applyFxPrefs(); });
     optSfxVol.addEventListener("input", () => setSfxVol(optSfxVol.valueAsNumber));
     optMusicVol.addEventListener("input", () => setMusicVol(optMusicVol.valueAsNumber));
+    if (optNick) optNick.addEventListener("input", () => saveNick(optNick.value));
   }
 
   // Mantém o Tab circulando dentro do dialog de configurações (focus trap)
@@ -1476,8 +1660,10 @@
   }
   document.addEventListener("visibilitychange", () => {
     if (document.hidden) autoPause();
+    else loadGlobalLeaderboard(); // ao voltar, busca o recorde mais recente dos amigos
   });
   window.addEventListener("blur", () => autoPause());
+  window.addEventListener("focus", () => loadGlobalLeaderboard());
 
   // Vibração (mobile): eventos-chave, opcional e comedida
   function vibe(pattern) {
@@ -1520,6 +1706,7 @@
   }
 
   function drawFood(now) {
+    if (!food) return; // tabuleiro cheio, nada para desenhar
     if (food.kind === "gold") { drawSpecialFood(now, "gold"); return; }
     if (food.kind === "speed") { drawSpecialFood(now, "speed"); return; }
     const age = now - foodBornAt;
@@ -2356,7 +2543,7 @@
     updateComboChip(now);
     updateSpeedChip(dt);
     // Gemas especiais expiram se não forem pegas a tempo
-    if (state === "playing" && food.kind !== "apple" && now >= foodExpiresAt) {
+    if (state === "playing" && food && food.kind !== "apple" && now >= foodExpiresAt) {
       const cx = food.x * cellSize + cellSize / 2;
       const cy = food.y * cellSize + cellSize / 2;
       flashes.push({ x: cx, y: cy, r: cellSize * 0.2, alpha: 0.7, w: 2, spd: cellSize * 0.12, color: "203, 213, 225" });
@@ -2369,6 +2556,7 @@
   resetGame();
   resizeCanvas();
   requestAnimationFrame(loop);
+  loadGlobalLeaderboard(); // busca o recorde mundial assim que o jogo abre
 
   if (window.__SNAKE_TEST__) {
     Object.assign(window.__SNAKE_TEST__,

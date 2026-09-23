@@ -38,6 +38,10 @@
             <span class="label">Recorde</span>
             <span class="value" id="highScore">0</span>
           </div>
+          <div class="score-box global" title="Maior pontuação de todos os jogadores (online)">
+            <span class="label">Global</span>
+            <span class="value" id="globalScore">—</span>
+          </div>
           <div class="score-box level">
             <span class="label">Nível</span>
             <span class="value" id="level">1</span>
@@ -111,6 +115,7 @@
       <div class="overlay hidden" id="overlayGameOver">
         <h2 class="overlay-title small danger">FIM DE JOGO</h2>
         <span class="badge hidden" id="newRecord">NOVO RECORDE</span>
+        <span class="badge hidden gbadge" id="newGlobalRecord">RECORDE GLOBAL</span>
         <p class="final-score" id="finalScore">0</p>
         <div class="stats-grid">
           <div class="stat"><span class="sl">Recorde</span><span class="sv" id="statRecord">0</span></div>
@@ -203,6 +208,15 @@
           </span>
           <input type="range" min="0" max="100" step="1" value="60" id="optMusicVol" aria-label="Volume da trilha ambiente" />
         </label>
+        <label class="setting-row">
+          <span class="s-main"><strong>Seu nome no placar global</strong><small>Aparece na classificação online</small></span>
+          <input type="text" class="nick-input" id="optNick" maxlength="12" autocomplete="off" spellcheck="false" placeholder="Nome…" aria-label="Seu nome no placar global" />
+        </label>
+      </div>
+      <div class="settings-leaderboard">
+        <h3>Placar global</h3>
+        <ul class="lb-list" id="leaderboardList"></ul>
+        <p class="lb-hint">O recorde do mundo é mostrado no topo da tela. Bata-o para ganhar o selo de — Recorde Global!</p>
       </div>
       <div class="settings-totals">
         <h3>Estatísticas totais</h3>

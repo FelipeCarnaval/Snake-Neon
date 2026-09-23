@@ -208,6 +208,14 @@ ok(T.getFoodExpiresAt() === Number.MAX_SAFE_INTEGER, "setFood não altera valida
 T.placeFood(true);
 ok(T.getFood().kind === "apple", "placeFood(true) força maçã comum");
 
+// N: placeFood não trava com o tabuleiro 100% ocupado (antes: loop infinito)
+T.resetGame();
+const full = [];
+for (let i = 0; i < 441; i++) full.push({ x: i % 21, y: Math.floor(i / 21) });
+T.setSnake(full);
+T.placeFood(true);
+ok(T.getFood() === null, "tabuleiro cheio devolve null sem travar");
+
 // M: estatísticas de itens especiais acumulam
 T.resetGame();
 const gx = T.getSnake()[0];

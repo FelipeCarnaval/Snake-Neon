@@ -1197,3 +1197,120 @@ body.rm *::after {
 .ach-item strong { font-size: 0.8rem; color: var(--text); }
 .ach-item small { font-size: 0.68rem; color: var(--muted); }
 .ach-item.locked { opacity: 0.42; filter: saturate(0.35); }
+
+/* ---------- Recorde global (HUD) ---------- */
+.score-box.global {
+  border-color: rgba(34, 211, 238, 0.3);
+  background: linear-gradient(160deg, rgba(34, 211, 238, 0.14), rgba(13, 23, 36, 0.5));
+}
+.score-box.global .value {
+  color: var(--cyan);
+  text-shadow: 0 0 14px rgba(34, 211, 238, 0.4);
+}
+
+/* Badge de superação do recorde mundial (âmbar, não confunde com o verde local) */
+.badge.gbadge {
+  background: linear-gradient(120deg, #fbbf24, #f97316);
+  box-shadow: 0 0 22px rgba(251, 191, 36, 0.45);
+}
+
+/* ---------- Nome no placar (configurações) ---------- */
+.setting-row .nick-input {
+  position: static;
+  width: 110px;
+  height: auto;
+  opacity: 1;
+  background: rgba(13, 23, 36, 0.75);
+  border: 1px solid rgba(140, 165, 195, 0.22);
+  border-radius: 9px;
+  color: var(--text);
+  padding: 7px 10px;
+  font: inherit;
+  font-size: 0.8rem;
+  text-align: right;
+}
+.setting-row .nick-input:focus {
+  outline: none;
+  border-color: var(--cyan);
+  box-shadow: 0 0 0 2px rgba(34, 211, 238, 0.22);
+}
+
+/* ---------- Placar global (configurações) ---------- */
+.settings-leaderboard {
+  margin-top: 14px;
+  padding-top: 12px;
+  border-top: 1px solid rgba(140, 165, 195, 0.1);
+}
+.settings-leaderboard h3 {
+  font-family: "Orbitron", sans-serif;
+  font-size: 0.7rem;
+  letter-spacing: 0.14em;
+  color: var(--muted);
+  margin-bottom: 10px;
+}
+.lb-list {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.lb-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+  border-radius: var(--r-sm);
+  background: rgba(13, 23, 36, 0.5);
+  border: 1px solid rgba(140, 165, 195, 0.08);
+  font-size: 0.78rem;
+}
+.lb-item .lb-rank {
+  flex: none;
+  font-family: "Orbitron", sans-serif;
+  font-size: 0.66rem;
+  color: var(--muted);
+  width: 30px;
+  height: 30px;
+  border-radius: 8px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(140, 165, 195, 0.08);
+}
+.lb-item .lb-rank.lb-gold { background: rgba(251, 191, 36, 0.16); color: #fbbf24; }
+.lb-item .lb-rank.lb-silver { background: rgba(203, 213, 225, 0.14); color: #cbd5e1; }
+.lb-item .lb-rank.lb-bronze { background: rgba(251, 146, 60, 0.14); color: #fb923c; }
+.lb-item .lb-name {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-weight: 700;
+  color: var(--text);
+}
+.lb-item .lb-meta { flex: none; font-size: 0.62rem; color: var(--muted); }
+.lb-item .lb-level { flex: none; font-size: 0.62rem; color: var(--cyan); }
+.lb-item .lb-score {
+  flex: none;
+  font-family: "Orbitron", sans-serif;
+  color: var(--lime);
+}
+.lb-item.lb-empty {
+  display: flex;
+  text-align: left;
+  color: var(--muted);
+  font-size: 0.74rem;
+  padding: 10px;
+}
+.lb-hint {
+  margin-top: 8px;
+  font-size: 0.66rem;
+  color: var(--muted);
+  line-height: 1.5;
+}
+
+/* Em telas bem estreitas o nome encolhe e a data sai de cena */
+@media (max-width: 360px) {
+  .lb-item .lb-meta { display: none; }
+}
