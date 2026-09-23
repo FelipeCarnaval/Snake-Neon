@@ -456,10 +456,12 @@ body.no-vfx .canvas-wrapper::before {
   display: flex;
   flex-direction: column;
   align-items: center;
-  justify-content: center;
+  justify-content: safe center; /* se o conteúdo passar do tabuleiro, rola do topo em vez de cortar */
   gap: 14px;
   text-align: center;
   padding: 22px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
   background: rgba(7, 13, 23, 0.76);
   backdrop-filter: blur(4px);
   animation: fadeIn 0.25s ease;
@@ -1053,18 +1055,21 @@ body.rm *::after {
   .btn { padding: 10px 16px; font-size: 0.85rem; }
   .toast-stack { right: 10px; bottom: 10px; max-width: 72vw; }
   .chip-text { font-size: 0.58rem; }
+}
 
-  /* Overlay cabe dentro do tabuleiro quadrado (fixa o botão cortado no mobile) e,
-     se a tela for baixíssima, rola internamente em vez de cortar conteúdo. */
-  .overlay { gap: 10px; padding: 14px 12px; overflow-y: auto; overscroll-behavior: contain; }
-  .overlay-title.small { font-size: clamp(1.15rem, 5.5vw, 1.5rem); }
-  .badge { padding: 4px 12px; font-size: 0.6rem; }
-  .final-score { font-size: clamp(1.9rem, 9vw, 2.7rem); }
+/* Overlay (game over) compacto e sem cortes: vale em telas largas E baixas.
+   O tabuleiro é quadrado, então "largura pequena" e "altura pequena" são equivalentes. */
+@media (max-width: 620px), (max-height: 620px) {
+  .overlay { gap: 10px; padding: 12px; }
+  .overlay-title.small { font-size: clamp(1.1rem, 5vw, 1.5rem); }
+  .overlay-title { letter-spacing: 0.22em; }
+  .badge { padding: 4px 12px; font-size: 0.6rem; margin-bottom: -2px; }
+  .final-score { font-size: clamp(1.8rem, 8vw, 2.6rem); }
   .stats-grid { gap: 6px; max-width: 300px; }
-  .stat { padding: 6px 7px; margin-bottom: 2px; }
-  .stat .sl { font-size: 0.68rem; }
+  .stat { padding: 5px 7px; margin-bottom: 0; }
+  .stat .sl { font-size: 0.66rem; }
   .stat .sv { font-size: 1.05rem; }
-  .overlay .btn { padding: 10px 22px; }
+  .overlay .btn { padding: 10px 24px; }
 }
 
 @media (max-width: 360px) {
@@ -1111,4 +1116,24 @@ body.rm *::after {
   .tc-pad { gap: 5px; }
   .t-btn { width: 46px; height: 46px; }
   .tp-pause { width: 48px; height: 48px; }
+}
+
+/* Game over em telas pequenas/baixas: ocupa o viewport inteiro (com safe-area).
+   Garante espaço de sobra para o botão "Jogar novamente" nunca ser cortado.
+   Combina com overflow-y:auto + safe center, então nada pode clipe. */
+@media (max-width: 620px), (max-height: 620px) {
+  #overlayGameOver.overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 55;
+    border-radius: 0;
+    background: rgba(7, 13, 23, 0.92);
+    backdrop-filter: blur(6px);
+    padding:
+      max(26px, env(safe-area-inset-top))
+      max(18px, env(safe-area-inset-right))
+      max(26px, env(safe-area-inset-bottom))
+      max(18px, env(safe-area-inset-left));
+    justify-content: safe center;
+  }
 }
