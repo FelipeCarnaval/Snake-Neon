@@ -543,6 +543,7 @@ body.no-vfx .canvas-wrapper::before {
   color: var(--muted);
   font-size: 0.92rem;
   line-height: 1.55;
+  text-wrap: pretty;
 }
 
 .overlay-hint {
@@ -746,6 +747,7 @@ body.no-vfx .canvas-wrapper::before {
   font-size: 0.72rem;
   letter-spacing: 0.04em;
   width: 100%;
+  text-wrap: pretty;
 }
 
 /* ---------- Controles de toque (somente telas touch) ---------- */
@@ -1116,6 +1118,7 @@ body.rm *::after {
   .btn.primary::after { display: none; }
   .toast { transition: opacity 0.2s ease; transform: none; }
   .frame-glow { animation: none; opacity: 0.7; }
+  .settings-panel { animation: none; }
 }
 
 @media (max-width: 500px) {
@@ -1123,11 +1126,28 @@ body.rm *::after {
   .score-box { min-width: 58px; padding: 5px 9px; }
   .score-box .value { font-size: 1.05rem; }
   .icon-btn { width: 36px; height: 38px; }
-  .hud { gap: 8px; }
-  .hud-right { gap: 7px; }
+  /* HUD em calha única: logo no topo, pontuações sob ele, botões logo abaixo */
+  .hud { gap: 8px; flex-direction: column; align-items: center; }
+  .hud-right { gap: 7px; justify-content: center; width: 100%; }
+  .scores { width: 100%; }
   .btn { padding: 10px 16px; font-size: 0.85rem; }
   .toast-stack { right: 10px; bottom: 10px; max-width: 72vw; }
   .chip-text { font-size: 0.58rem; }
+  /* Configurações viram uma "bottom sheet" em telas estreitas (polegar amigo) */
+  .settings-backdrop { align-items: flex-end; padding: 0; }
+  .settings-panel {
+    width: 100%;
+    max-height: 92svh;
+    border-radius: var(--r-lg) var(--r-lg) 0 0;
+    border-bottom: none;
+    padding-bottom: calc(18px + env(safe-area-inset-bottom));
+    animation: sheetUp 0.26s cubic-bezier(0.22, 0.9, 0.26, 1.1) both;
+  }
+}
+
+@keyframes sheetUp {
+  from { transform: translateY(44px); opacity: 0; }
+  to { transform: none; opacity: 1; }
 }
 
 /* Overlay (game over) compacto e sem cortes: vale em telas largas E baixas.
@@ -1155,7 +1175,7 @@ body.rm *::after {
 @media (orientation: landscape) and (max-height: 560px) {
   body { padding: 10px; }
   .game-container { width: min(92vw, calc(100svh - 130px)); }
-  .hud { gap: 8px; }
+  .hud { gap: 8px; flex-direction: row; align-items: center; }
   .logo { font-size: clamp(0.85rem, 3vw, 1.1rem); letter-spacing: 0.18em; }
   .score-box { min-width: 50px; padding: 4px 8px; }
   .score-box .value { font-size: 0.95rem; }

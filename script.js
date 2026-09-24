@@ -96,14 +96,18 @@
   const countdownEl = document.getElementById("countdown");
   const btnPlayAgain = document.getElementById("btnPlayAgain");
   const btnShare = document.getElementById("btnShare");
-  // Estrelas determinísticas do fundo (3 camadas de parallax)
-  const starField = Array.from({ length: 110 }, (_, i) => ({
-    x: ((i * 137) % 173) / 173,
-    y: ((i * 89) % 131) / 131,
-    s: 0.35 + ((i * 17) % 9) / 10,
-    tw: (i * 31) % 100,
-    layer: i % 3,
-  }));
+  // Estrelas determinísticas do fundo (3 camadas de parallax, algumas com matiz)
+  const starField = Array.from({ length: 110 }, (_, i) => {
+    const tints = ["190,216,255", "165,243,252", "233,213,255", "190,216,255"];
+    return {
+      x: ((i * 137) % 173) / 173,
+      y: ((i * 89) % 131) / 131,
+      s: 0.35 + ((i * 17) % 9) / 10,
+      tw: (i * 31) % 100,
+      layer: i % 3,
+      tint: tints[i % tints.length],
+    };
+  });
 
   /* ================= Utilidades ================= */
   const storage = {
@@ -1831,6 +1835,9 @@
     ctx.ellipse(glX, glY, r * 0.16, r * 0.3, -0.7, 0, Math.PI * 2);
     ctx.fill();
 
+    // Faísca de "fruta fresca" no alto da maçã
+    drawTwinkle(cx + r * 0.45, cy - r * 0.6, now, "255, 255, 255");
+
     // Faíscas orbitando a gema
     for (let i = 0; i < 3; i++) {
       const a = now / 700 + (i * Math.PI * 2) / 3;
@@ -1973,6 +1980,9 @@
     ctx.arc(cx - r * 0.3, cy - r * 0.3, r * 0.18, 0, Math.PI * 2);
     ctx.fill();
     ctx.restore();
+
+    // Faísca no topo (dourada) ou lateral (raio), na mesma cor do item
+    drawTwinkle(gold ? cx - r * 0.5 : cx + r * 0.4, cy - r * 0.65, now, auraRgb);
   }
 
   // Obstáculos: blocos de aço com borda cor do bioma, pulsando suavemente
@@ -2076,7 +2086,7 @@
     // Halo neon externo (aditivo)
     ctx.save();
     ctx.globalCompositeOperation = "lighter";
-    ctx.strokeStyle = `rgba(163, 230, 53, ${0.14 * s})`;
+    ctx.strokeStyle = `rgba(163, 230, 53, ${0.18 * s})`;
     ctx.lineWidth = bodyW * 1.7;
     ctx.stroke(path);
     ctx.restore();
@@ -2213,12 +2223,14 @@
       ctx.stroke();
     }
 
-    // Textura de escama extra: "V" invertidos pulsando ao longo do corpo
+    // Textura de escama extra: "V" invertidos ondulando ao longo do corpo
     if (fxVisual && !reducedMotion) {
       const scPulse = 0.5 + 0.5 * Math.sin(now / 800);
+      const wave = Math.floor(now / 170) % 2; // a onda "caminha" → sensação de serpente deslizando
       ctx.strokeStyle = `rgba(236, 252, 203, ${(0.07 + 0.07 * scPulse).toFixed(3)})`;
       ctx.lineWidth = Math.max(cellSize * 0.045, 1);
       for (let i = 2; i < pts.length; i++) {
+        if (i % 2 !== wave) continue;
         const a = pts[i], b = pts[i - 1];
         const slen = Math.hypot(b.x - a.x, b.y - a.y);
         if (slen < 0.001) continue;
@@ -2454,6 +2466,26 @@
     ctx.fill();
   }
 
+  // Faísca de 4 pontas que acende e apaga (brilho de "fruta fresca")
+  function drawTwinkle(cx, cy, now, rgb) {
+    if (reducedMotion) return;
+    const tw = 0.5 + 0.5 * Math.sin(now / 200 + cx / 40);
+    if (tw < 0.05) return;
+    ctx.save();
+    ctx.translate(cx, cy);
+    ctx.rotate(now / 800);
+    ctx.globalCompositeOperation = "lighter";
+    const len = cellSize * 0.2 * tw;
+    ctx.lineCap = "round";
+    ctx.strokeStyle = `rgba(${rgb}, ${(0.45 * tw).toFixed(3)})`;
+    ctx.lineWidth = Math.max(cellSize * 0.03, 1);
+    ctx.beginPath();
+    ctx.moveTo(-len, 0); ctx.lineTo(len, 0);
+    ctx.moveTo(0, -len); ctx.lineTo(0, len);
+    ctx.stroke();
+    ctx.restore();
+  }
+
   function drawEffects(dt) {
     const f = dt / 16.7;
 
@@ -2610,6 +2642,57 @@
     if (headPx) { ox = (mx - headPx.x) * 0.08; oy = (my - headPx.y) * 0.08; }
     const drift = reducedMotion ? 0 : (now / 60) % size;
 
+    // Ambiente próprio de cada cenário (sutil, sem roubar a leitura do tabuleiro)
+    if (bgTheme && fxVisual) {
+      ctx.save();
+      if (bgTheme === "neon") {
+        // "Letreiro" neon no rodapé + barras laterais
+        const b = 0.5 + 0.5 * Math.sin(now / 1800);
+        const nb = ctx.createRadialGradient(mx, my + size * 0.34, 0, mx, my + size * 0.34, size * 0.6);
+        nb.addColorStop(0, `rgba(34, 211, 238, ${(0.05 + 0.03 * b).toFixed(3)})`);
+        nb.addColorStop(1, "rgba(34, 211, 238, 0)");
+        ctx.fillStyle = nb;
+        ctx.fillRect(0, 0, size, size);
+        ctx.lineCap = "round";
+        ctx.strokeStyle = `rgba(103, 232, 249, ${(0.05 + 0.03 * Math.sin(now / 1400)).toFixed(3)})`;
+        ctx.lineWidth = Math.max(size * 0.008, 1.5);
+        ctx.beginPath();
+        ctx.moveTo(size * 0.045, size * 0.12); ctx.lineTo(size * 0.045, size * 0.6);
+        ctx.moveTo(size * 0.955, size * 0.12); ctx.lineTo(size * 0.955, size * 0.6);
+        ctx.stroke();
+      } else if (bgTheme === "grid") {
+        // Eixos principais reforçados + linha de escaneamento descendo
+        const gb = 0.5 + 0.5 * Math.sin(now / 1600);
+        ctx.strokeStyle = `rgba(148, 190, 235, ${(0.05 + 0.03 * gb).toFixed(3)})`;
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.moveTo(mx, 0); ctx.lineTo(mx, size);
+        ctx.moveTo(0, my); ctx.lineTo(size, my);
+        ctx.stroke();
+        if (!reducedMotion) {
+          const scanY = (now / 60) % size;
+          const sg = ctx.createLinearGradient(0, scanY - size * 0.04, 0, scanY + size * 0.04);
+          sg.addColorStop(0, "rgba(165, 243, 252, 0)");
+          sg.addColorStop(0.5, "rgba(165, 243, 252, 0.055)");
+          sg.addColorStop(1, "rgba(165, 243, 252, 0)");
+          ctx.fillStyle = sg;
+          ctx.fillRect(0, scanY - size * 0.04, size, size * 0.08);
+        }
+      } else {
+        // Espaço: aurora teal que deriva devagar no terço inferior
+        if (!reducedMotion) {
+          const ph = now / 2600;
+          const ay = my + size * 0.32 + Math.sin(ph) * size * 0.05;
+          const au = ctx.createRadialGradient(mx, ay, 0, mx, ay, size * 0.62);
+          au.addColorStop(0, `rgba(45, 212, 191, ${(0.03 + 0.02 * Math.sin(ph * 2)).toFixed(3)})`);
+          au.addColorStop(1, "rgba(45, 212, 191, 0)");
+          ctx.fillStyle = au;
+          ctx.fillRect(0, 0, size, size);
+        }
+      }
+      ctx.restore();
+    }
+
     // Nebulosa: dois halos suaves com a cor do bioma atual
     if (biomeTint && fxVisual && !reducedMotion) {
       const n1x = (mx + Math.cos(now / 9000) * size * 0.3 + ox);
@@ -2627,7 +2710,7 @@
       const py = ((st.y * size + oy * (st.layer / 2.2)) % size + size) % size;
       const breath = 0.3 + 0.7 * (0.5 + 0.5 * Math.sin(now / 1600 + st.tw));
       const alpha = ((st.layer + 1) / 4) * breath * (st.layer * 0.35 + 0.25);
-      ctx.fillStyle = `rgba(190, 216, 255, ${alpha.toFixed(3)})`;
+      ctx.fillStyle = `rgba(${st.tint}, ${alpha.toFixed(3)})`;
       ctx.beginPath();
       ctx.arc(px, py, st.s * (0.6 + st.layer * 0.35), 0, Math.PI * 2);
       ctx.fill();
