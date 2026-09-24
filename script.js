@@ -109,6 +109,15 @@
     };
   });
 
+  // Partículas bioluminescentes "águas profundas": sobem devagar com parallax leve
+  const motes = Array.from({ length: 18 }, (_, i) => ({
+    x: (((i * 67) % 97) / 97),
+    y: (((i * 43) % 89) / 89),
+    s: 0.5 + ((i * 13) % 10) / 10,
+    tw: (i * 53) % 100,
+    ph: (i * 29) % 100,
+  }));
+
   /* ================= Utilidades ================= */
   const storage = {
     get() {
@@ -1432,6 +1441,7 @@
   document.getElementById("btnPlayAgain").addEventListener("click", (e) => { startGame(); e.currentTarget.blur(); });
   document.getElementById("btnResume").addEventListener("click", (e) => { resume(); e.currentTarget.blur(); });
   document.getElementById("btnRestart").addEventListener("click", (e) => { startGame(); e.currentTarget.blur(); });
+  document.getElementById("btnRestartPause").addEventListener("click", (e) => { startGame(); e.currentTarget.blur(); });
   btnPause.addEventListener("click", (e) => { togglePause(); e.currentTarget.blur(); });
 
   // Botão de ligar/desligar som (mute geral, inclui o ambiente)
@@ -2089,6 +2099,12 @@
     ctx.strokeStyle = `rgba(163, 230, 53, ${0.18 * s})`;
     ctx.lineWidth = bodyW * 1.7;
     ctx.stroke(path);
+    // Halo externo na cor do bioma atual: amarra a serpente ao palco
+    if (biomeTint) {
+      ctx.strokeStyle = `rgba(${biomeTint}, ${0.11 * s})`;
+      ctx.lineWidth = bodyW * 2.4;
+      ctx.stroke(path);
+    }
     ctx.restore();
 
     // Aura de combo: intensifica conforme o multiplicador e muda de tom por tier
@@ -2256,6 +2272,12 @@
     ctx.lineWidth = bodyW * 0.42;
     ctx.stroke(path);
 
+    // Linha dorsal quente e fina: dá volume de "vidro" ao corpo
+    ctx.strokeStyle = "rgba(248, 255, 224, 0.5)";
+    ctx.lineWidth = Math.max(bodyW * 0.15, 1);
+    ctx.lineCap = "round";
+    ctx.stroke(path);
+
     drawHead(now, head, bodyW);
   }
 
@@ -2352,6 +2374,15 @@
       ctx.fill();
     }
     ctx.restore();
+
+    // Narinas: dois pontinhos escuros na ponta do focinho
+    const ns = Math.max(cellSize * 0.045, 1);
+    ctx.fillStyle = "rgba(84, 112, 32, 0.75)";
+    for (const s of [-1, 1]) {
+      ctx.beginPath();
+      ctx.arc(hp.x + ex * hr * 0.92 + px * hr * 0.3 * s, hp.y + ey * hr * 0.92 + py * hr * 0.3 * s, ns, 0, Math.PI * 2);
+      ctx.fill();
+    }
 
     // Olhos: globo, pupila orientada ao movimento e ponto de luz
     const eyeOff = cellSize * 0.2;
@@ -2556,6 +2587,26 @@
     ctx.fillStyle = bgGrad;
     ctx.fillRect(0, 0, size, size);
 
+    // Reflexos de luz na água: 3 ondulações horizontais que deslizam devagar
+    if (fxVisual && !reducedMotion) {
+      ctx.save();
+      ctx.strokeStyle = "rgba(190, 242, 255, 0.045)";
+      ctx.lineWidth = 1.6;
+      ctx.lineCap = "round";
+      for (let i = 0; i < 3; i++) {
+        const yl = ((size / 2 + Math.sin(now / 5000 + i * 2.1) * size * 0.28) % size + size) % size;
+        const xOff = Math.sin(now / 4000 + i * 1.7) * size * 0.3;
+        ctx.beginPath();
+        for (let x = 0; x <= size; x += 22) {
+          const yy = yl + Math.sin((x + xOff) * 0.02 + i * 3.1) * 3;
+          if (x === 0) ctx.moveTo(x, yy);
+          else ctx.lineTo(x, yy);
+        }
+        ctx.stroke();
+      }
+      ctx.restore();
+    }
+
     // Cenário temático além do gradiente: grade técnica (grid) ou neon ciano
     if (bgTheme === "grid" || bgTheme === "neon") {
       const neon = bgTheme === "neon";
@@ -2714,6 +2765,21 @@
       ctx.beginPath();
       ctx.arc(px, py, st.s * (0.6 + st.layer * 0.35), 0, Math.PI * 2);
       ctx.fill();
+    }
+
+    // Motes bioluminescentes: sobem devagar (plâncton), com leve órbita e parallax
+    if (fxVisual) {
+      for (const m of motes) {
+        const rise = reducedMotion ? 0 : ((now / 42000) * (m.tw + 40)) / 100;
+        const px = ((m.x * size + ox * 0.4 + Math.sin(now / 5200 + m.ph) * size * 0.02) % size + size) % size;
+        const py = ((m.y * size + rise * size + oy * 0.4) % size + size) % size;
+        const tw = 0.4 + 0.6 * (0.5 + 0.5 * Math.sin(now / 950 + m.tw));
+        const rgb = m.ph % 3 === 0 ? "103, 232, 249" : m.ph % 3 === 1 ? "45, 212, 191" : "163, 230, 53";
+        ctx.fillStyle = `rgba(${rgb}, ${(tw * (0.05 + 0.05 * m.s)).toFixed(3)})`;
+        ctx.beginPath();
+        ctx.arc(px, py, Math.max(m.s * 0.85, 0.8), 0, Math.PI * 2);
+        ctx.fill();
+      }
     }
   }
 

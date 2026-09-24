@@ -757,9 +757,12 @@ body.no-vfx .canvas-wrapper::before {
 
 @media (pointer: coarse) {
   .hint { display: none; }
-  /* Reserva espaço para o d-pad flutuante não cobrir a barra de controles */
+  /* A barra Pausar/Reiniciar não compete com o d-pad flutuante no toque:
+     o anel de pausa já existe e "Reiniciar" mora no overlay de pausa */
+  .controls-bar { display: none; }
+  /* Reserva o vão do d-pad para o tabuleiro nunca ficar debaixo dele */
   body {
-    padding-bottom: max(200px, calc(180px + env(safe-area-inset-bottom)));
+    padding-bottom: max(210px, calc(190px + env(safe-area-inset-bottom)));
   }
   .touch-controls {
     display: flex;
@@ -772,6 +775,14 @@ body.no-vfx .canvas-wrapper::before {
     z-index: 40;
     pointer-events: none;
   }
+}
+
+/* Telas de toque bem estreitas: d-pad e anel encolhem para não se tocarem */
+@media (pointer: coarse) and (max-width: 420px) {
+  .t-btn { width: 48px; height: 48px; }
+  .tp-pause { width: 52px; height: 52px; }
+  .tc-pad { gap: 6px; }
+  .touch-controls { bottom: max(10px, calc(env(safe-area-inset-bottom) + 6px)); }
 }
 
 .tc-pad {
