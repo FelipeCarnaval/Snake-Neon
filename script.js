@@ -65,6 +65,7 @@
   const btnPause = document.getElementById("btnPause");
   const btnSound = document.getElementById("btnSound");
   const btnAmbient = document.getElementById("btnAmbient");
+  const btnStart = document.getElementById("btnStart");
   const levelEl = document.getElementById("level");
   const levelFill = document.getElementById("levelFill");
   const bestBox = document.querySelector(".score-box.best");
@@ -730,6 +731,15 @@
     catch (e) { /* armazenamento indisponível */ }
   }
 
+  // "Só deixa jogar com nome": o botão Jogar fica desabilitado sem nickname
+  function updateStartGate() {
+    const ok = !!loadNick();
+    if (btnStart) {
+      btnStart.disabled = !ok;
+      btnStart.setAttribute("aria-disabled", ok ? "false" : "true");
+    }
+  }
+
   async function lbFetch(path, opts) {
     const headers = Object.assign({
       apikey: SUPABASE_ANON,
@@ -1337,6 +1347,7 @@
 
   /* ================= Fluxo / controles ================= */
   function startGame() {
+    if (state === "ready" && !loadNick()) return; // exige nome antes do primeiro início
     resetGame();
     state = "playing";
     hideOverlay(overlayStart);
@@ -1492,7 +1503,7 @@
     optSfxVol.addEventListener("input", () => setSfxVol(optSfxVol.valueAsNumber));
     optMusicVol.addEventListener("input", () => setMusicVol(optMusicVol.valueAsNumber));
     if (optNick) optNick.addEventListener("input", () => saveNick(optNick.value));
-    if (optNickStart) optNickStart.addEventListener("input", () => saveNick(optNickStart.value));
+    if (optNickStart) optNickStart.addEventListener("input", () => { saveNick(optNickStart.value); updateStartGate(); });
     if (optSpeed) optSpeed.addEventListener("change", () => { speedPref = optSpeed.value; if (!SPEED_TIERS[speedPref]) speedPref = "normal"; saveChoice(SPEED_KEY, speedPref); });
     if (optBg) optBg.addEventListener("change", () => { bgTheme = optBg.value; if (BG_THEMES.indexOf(bgTheme) < 0) bgTheme = "space"; saveChoice(BG_KEY, bgTheme); });
   }
@@ -1801,15 +1812,23 @@
     g.addColorStop(0, "#fda4af");
     g.addColorStop(1, "#e11d48");
     ctx.fillStyle = g;
+    // Silhueta de maçã: dois lóbulos sobrepostos (mais "fruta" do que bola)
     ctx.beginPath();
-    ctx.arc(cx, cy, r, 0, Math.PI * 2);
+    ctx.arc(cx - r * 0.26, cy + r * 0.02, r * 0.97, 0, Math.PI * 2);
+    ctx.arc(cx + r * 0.26, cy + r * 0.02, r * 0.97, 0, Math.PI * 2);
     ctx.fill();
+    // Aro de definição (silhueta legível contra o brilho)
+    ctx.shadowBlur = 0;
+    ctx.strokeStyle = "rgba(136, 19, 55, 0.7)";
+    ctx.lineWidth = Math.max(cellSize * 0.045, 1);
+    ctx.stroke();
     ctx.restore();
 
-    // Brilho/reflexo
-    ctx.fillStyle = "rgba(255, 255, 255, 0.75)";
+    // Brilho/reflexo em crescente (luz vinda de cima-esquerda)
+    ctx.fillStyle = "rgba(255, 255, 255, 0.82)";
     ctx.beginPath();
-    ctx.arc(cx - r * 0.3, cy - r * 0.3, r * 0.22, 0, Math.PI * 2);
+    const glX = cx - r * 0.42, glY = cy - r * 0.3;
+    ctx.ellipse(glX, glY, r * 0.16, r * 0.3, -0.7, 0, Math.PI * 2);
     ctx.fill();
 
     // Faíscas orbitando a gema
@@ -2121,9 +2140,38 @@
     grad.addColorStop(0.22, "#a3e635");
     grad.addColorStop(0.6, "#22c55e");
     grad.addColorStop(1, "#0f766e");
+    // Casing escuro fino (define a silhueta contra o brilho do fundo)
+    ctx.strokeStyle = "rgba(4, 34, 24, 0.55)";
+    ctx.lineWidth = bodyW * 1.06;
+    ctx.stroke(path);
     ctx.strokeStyle = grad;
     ctx.lineWidth = bodyW;
     ctx.stroke(path);
+
+    // Cauda afinando: últimos pontos redesenhados com largura decrescente (ponta arredondada)
+    if (pts.length > 3) {
+      const n = Math.min(4, pts.length - 1);
+      ctx.save();
+      ctx.lineCap = "round";
+      ctx.strokeStyle = grad;
+      for (let i = 0; i < n; i++) {
+        const a = pts[pts.length - 2 - i];
+        const b = pts[pts.length - 1 - i];
+        const k = (i + 1) / (n + 1);
+        ctx.lineWidth = bodyW * (1 - k * 0.82);
+        ctx.beginPath();
+        ctx.moveTo(a.x, a.y);
+        ctx.lineTo(b.x, b.y);
+        ctx.stroke();
+      }
+      // Pontinha luminosa
+      const tip = pts[pts.length - 1];
+      ctx.fillStyle = "rgba(236, 252, 203, 0.85)";
+      ctx.beginPath();
+      ctx.arc(tip.x, tip.y, Math.max(bodyW * 0.13, 1.2), 0, Math.PI * 2);
+      ctx.fill();
+      ctx.restore();
+    }
 
     // Pulso de energia: onda brilhante que viaja da cauda para a cabeça ao comer
     if (fxVisual && !reducedMotion && state === "playing") {
@@ -2274,6 +2322,10 @@
     // Cabeça em elipse alongada na direção do movimento (mais "cobrinha")
     ctx.ellipse(hp.x, hp.y, hr * 1.28, hr, Math.atan2(ey, ex), 0, Math.PI * 2);
     ctx.fill();
+    // Aro de definição da cabeça (silhueta legível contra o fundo brilhante)
+    ctx.strokeStyle = "rgba(217, 249, 157, 0.45)";
+    ctx.lineWidth = Math.max(cellSize * 0.045, 1);
+    ctx.stroke();
     // Brilho especular na "testa" (na ponta da direção do movimento)
     if (fxVisual) {
       const headTipX = hp.x + ex * hr * 0.7;
@@ -2502,13 +2554,12 @@
       ctx.restore();
     }
 
-    // Tema de cenário: detalhes próprios além do gradiente base
+    // Tema de cenário: grade técnica (grid) ou neon ciano, em um único passe
     if (bgTheme === "grid" || bgTheme === "neon") {
       const neon = bgTheme === "neon";
       ctx.save();
-      // Grade mais presente (bem visível no "grid"; neon com brilho ciano)
       const glow = neon ? 0.16 : 0.07;
-      ctx.strokeStyle = neon ? `rgba(56, 224, 255, ${glow})` : `rgba(148, 190, 235, ${glow})`;
+      ctx.strokeStyle = neon ? `rgba(56, 224, 255, ${glow})` : `rgba(148, 173, 205, ${glow + 0.04})`;
       ctx.lineWidth = 1;
       ctx.beginPath();
       for (let i = 1; i < GRID; i++) {
@@ -2517,8 +2568,12 @@
         ctx.moveTo(0, p); ctx.lineTo(size, p);
       }
       ctx.stroke();
-      // Pontos luminosos nos cruzamentos (mais fortes no neon)
-      ctx.fillStyle = neon ? `rgba(56, 224, 255, ${(0.10 + 0.05 * Math.sin(now / 1800)).toFixed(3)})` : `rgba(148, 190, 235, 0.16)`;
+
+      // Nós luminosos nos cruzamentos (brilham mais no neon)
+      const breath2 = 0.5 + 0.5 * Math.sin(now / 2000);
+      ctx.fillStyle = neon
+        ? `rgba(56, 224, 255, ${(0.10 + 0.08 * breath2).toFixed(3)})`
+        : `rgba(165, 195, 230, ${(0.045 + 0.03 * breath2).toFixed(3)})`;
       ctx.beginPath();
       for (let gx = 1; gx < GRID; gx++) {
         for (let gy = 1; gy < GRID; gy++) {
@@ -2527,6 +2582,27 @@
       }
       ctx.fill();
       ctx.restore();
+    }
+
+    // Estrela cadente ocasional cruzando o palco (espaço)
+    if (bgTheme === "space" && fxVisual && !reducedMotion) {
+      const ph = (now % 9000) / 9000;
+      if (ph > 0.82) {
+        const k = (ph - 0.82) / 0.18;
+        const sx = size * (0.18 + k * 0.86);
+        const sy = size * (0.10 + k * 0.42);
+        const tail = 74;
+        const mg = ctx.createLinearGradient(sx, sy, sx - tail, sy - tail * 0.62);
+        mg.addColorStop(0, "rgba(235, 245, 255, 0.95)");
+        mg.addColorStop(1, "rgba(235, 245, 255, 0)");
+        ctx.strokeStyle = mg;
+        ctx.lineWidth = 1.6;
+        ctx.lineCap = "round";
+        ctx.beginPath();
+        ctx.moveTo(sx - tail, sy - tail * 0.62);
+        ctx.lineTo(sx, sy);
+        ctx.stroke();
+      }
     }
 
     const mx = size / 2, my = size / 2;
@@ -2671,6 +2747,8 @@
   /* ================= Inicialização ================= */
   resetGame();
   resizeCanvas();
+  if (optNickStart) optNickStart.value = loadNick();
+  updateStartGate();
   requestAnimationFrame(loop);
   loadGlobalLeaderboard(); // busca o recorde mundial assim que o jogo abre
 
