@@ -738,6 +738,7 @@
   let globalRecord = null; // null = desconhecido/sem backend
   let globalTop = [];
   let lbLastPush = 0;
+  let lbLastLoad = 0; // cooldown do GET para não martelar o backend a cada foco/troca de aba
 
   function lbEnabled() {
     if (!SUPABASE_URL || !SUPABASE_ANON || typeof fetch === "undefined") return false;
@@ -775,6 +776,10 @@
 
   async function loadGlobalLeaderboard() {
     if (!lbEnabled()) { renderLeaderboard(); return; }
+    const now = Date.now();
+    const FRESH_MS = 30000; // não recarrega por baixo da tela a cada foco
+    if (lbLastLoad && now - lbLastLoad < FRESH_MS) { renderLeaderboard(); return; }
+    lbLastLoad = now;
     try {
       const rows = await lbFetch(
         SUPABASE_URL + "/rest/v1/records?select=name,score,level,created_at&order=score.desc&limit=12"
@@ -838,6 +843,7 @@
       },
       body: JSON.stringify({ name, score: Math.round(score), level: level | 0 })
     }).then(() => {
+      lbLastLoad = 0; // o placar acabou de mudar: recarrega já, sem cooldown
       loadGlobalLeaderboard();
       showToast("Novo recorde mundial!", "Sua pontuação foi publicada no placar global.");
     }).catch(() => { /* sem conexão: fica só local */ });
@@ -864,7 +870,10 @@
     const medals = ["lb-gold", "lb-silver", "lb-bronze"];
     globalTop.slice(0, 10).forEach((r, i) => {
       const li = document.createElement("li");
-      li.className = "lb-item";
+      // Destaque para a própria linha no placar (se o apelido bater)
+      const myNick = (loadNick() || "").trim().toLowerCase();
+      const isMe = myNick.length > 0 && r.name.trim().toLowerCase() === myNick;
+      li.className = "lb-item" + (isMe ? " me" : "");
       const rank = document.createElement("span");
       rank.className = "lb-rank" + (medals[i] ? " " + medals[i] : "");
       rank.textContent = "#" + (i + 1);
@@ -1449,7 +1458,10 @@
     if (k === "escape" && settingsOpen()) { closeSettings(); return; }
     // Campo de texto (nome na tela inicial etc.) não aciona controles do jogo
     const ae = document.activeElement;
-    if (ae && /^(input|textarea|select)$/i.test(ae.tagName)) return;
+    if (ae && /^(input|textarea|select)$/i.test(ae.tagName)) {
+      if (k === "enter" && state === "ready" && loadNick()) startGame(); // Enter no nome = jogar
+      return;
+    }
     // Botão já focado: Space aciona o clique nativo — evita pausar e retomar em sequência
     if (k === " " && ae && ae.closest && ae.closest("button")) return;
     if (["arrowup", "arrowdown", "arrowleft", "arrowright", " "].includes(k)) e.preventDefault();
