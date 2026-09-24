@@ -3,9 +3,13 @@
 
   /* ================= Configurações ================= */
   const GRID = 21;            // células por lado
-  const START_SPEED = 150;    // ms por passo no início
-  const MIN_SPEED = 65;       // limite máximo de velocidade
-  const SPEEDUP = 0.55;       // ms reduzidos por ponto
+  /* Velocidade por nível predefinido (ms por passo). O padrão "normal" já vem
+     mais calmo que o ritmo antigo (150ms): começa em 175ms e nunca passa de 85ms. */
+  const SPEED_TIERS = {
+    slow:   { start: 230, min: 110, up: 0.30 },
+    normal: { start: 175, min: 85,  up: 0.42 },
+    fast:   { start: 140, min: 65,  up: 0.55 },
+  };
   const FOOD_POINTS = 10;
   const GOLD_POINTS = 30;
   const SPEED_POINTS = 5;
@@ -78,6 +82,9 @@
   const sfxVolVal = document.getElementById("sfxVolVal");
   const musicVolVal = document.getElementById("musicVolVal");
   const optNick = document.getElementById("optNick");
+  const optNickStart = document.getElementById("optNickStart");
+  const optSpeed = document.getElementById("optSpeed");
+  const optBg = document.getElementById("optBg");
   const comboChip = document.getElementById("comboChip");
   const comboText = document.getElementById("comboText");
   const comboBarFill = document.getElementById("comboBarFill");
@@ -553,10 +560,25 @@
   const FX_P_KEY = "snakeFxParticles";
   const FX_V_KEY = "snakeFxVisual";
   const RM_KEY = "snakeReducedMotion";
+  const SPEED_KEY = "snakeSpeed";
+  const BG_KEY = "snakeBg";
   const mqReduce = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)");
   let fxParticles = loadPref(FX_P_KEY, true);
   let fxVisual = loadPref(FX_V_KEY, true);
   let reducedMotion = loadPref(RM_KEY, !!(mqReduce && mqReduce.matches));
+
+  // Escolhas de texto (velocidade/cenário) são salvas como strings no localStorage
+  function loadChoice(key, def) {
+    try { const v = localStorage.getItem(key); return v || def; } catch (e) { return def; }
+  }
+  function saveChoice(key, v) {
+    try { localStorage.setItem(key, String(v)); } catch (e) { /* ignore */ }
+  }
+  const BG_THEMES = ["space", "grid", "neon"];
+  let speedPref = loadChoice(SPEED_KEY, "normal");
+  if (!SPEED_TIERS[speedPref]) speedPref = "normal";
+  let bgTheme = loadChoice(BG_KEY, "space");
+  if (BG_THEMES.indexOf(bgTheme) < 0) bgTheme = "space";
 
   function applyFxPrefs() {
     document.body.classList.toggle("no-vfx", !fxVisual);
@@ -910,7 +932,8 @@
   }
 
   function stepInterval() {
-    const base = Math.max(MIN_SPEED, START_SPEED - score * SPEEDUP);
+    const tier = SPEED_TIERS[speedPref] || SPEED_TIERS.normal;
+    const base = Math.max(tier.min, tier.start - score * tier.up);
     return speedActive ? Math.max(40, base * SPEED_FACTOR) : base;
   }
 
@@ -1418,6 +1441,9 @@
     optParticles.checked = fxParticles;
     optVisual.checked = fxVisual;
     optMotion.checked = reducedMotion;
+    if (optSpeed) optSpeed.value = speedPref;
+    if (optBg) optBg.value = bgTheme;
+    if (optNickStart) optNickStart.value = loadNick();
     if (optSfxVol) {
       optSfxVol.value = Math.round(sfx.vol * 100);
       if (sfxVolVal) sfxVolVal.textContent = Math.round(sfx.vol * 100) + "%";
@@ -1437,7 +1463,9 @@
     syncSettingsControls();
     fillTotals();
     fillAchievements();
-    if (optNick) optNick.value = loadNick();
+    if (optSpeed) optSpeed.value = speedPref;
+    if (optBg) optBg.value = bgTheme;
+    if (optNickStart) optNickStart.value = loadNick();
     renderLeaderboard();
     loadGlobalLeaderboard();
     lastFocused = document.activeElement;
@@ -1464,6 +1492,9 @@
     optSfxVol.addEventListener("input", () => setSfxVol(optSfxVol.valueAsNumber));
     optMusicVol.addEventListener("input", () => setMusicVol(optMusicVol.valueAsNumber));
     if (optNick) optNick.addEventListener("input", () => saveNick(optNick.value));
+    if (optNickStart) optNickStart.addEventListener("input", () => saveNick(optNickStart.value));
+    if (optSpeed) optSpeed.addEventListener("change", () => { speedPref = optSpeed.value; if (!SPEED_TIERS[speedPref]) speedPref = "normal"; saveChoice(SPEED_KEY, speedPref); });
+    if (optBg) optBg.addEventListener("change", () => { bgTheme = optBg.value; if (BG_THEMES.indexOf(bgTheme) < 0) bgTheme = "space"; saveChoice(BG_KEY, bgTheme); });
   }
 
   // Mantém o Tab circulando dentro do dialog de configurações (focus trap)
@@ -2240,8 +2271,22 @@
     hg.addColorStop(1, "#84cc16");
     ctx.fillStyle = hg;
     ctx.beginPath();
-    ctx.arc(hp.x, hp.y, hr, 0, Math.PI * 2);
+    // Cabeça em elipse alongada na direção do movimento (mais "cobrinha")
+    ctx.ellipse(hp.x, hp.y, hr * 1.28, hr, Math.atan2(ey, ex), 0, Math.PI * 2);
     ctx.fill();
+    // Brilho especular na "testa" (na ponta da direção do movimento)
+    if (fxVisual) {
+      const headTipX = hp.x + ex * hr * 0.7;
+      const headTipY = hp.y + ey * hr * 0.7;
+      const gloss = ctx.createRadialGradient(headTipX, headTipY, 0, headTipX, headTipY, hr * 0.8);
+      gloss.addColorStop(0, "rgba(255, 255, 255, 0.28)");
+      gloss.addColorStop(0.5, "rgba(255, 255, 255, 0.06)");
+      gloss.addColorStop(1, "rgba(255, 255, 255, 0)");
+      ctx.fillStyle = gloss;
+      ctx.beginPath();
+      ctx.ellipse(hp.x, hp.y, hr * 1.28, hr, Math.atan2(ey, ex), 0, Math.PI * 2);
+      ctx.fill();
+    }
     ctx.restore();
 
     // Olhos: globo, pupila orientada ao movimento e ponto de luz
@@ -2426,6 +2471,63 @@
     const size = GRID * cellSize;
     ctx.fillStyle = bgGrad;
     ctx.fillRect(0, 0, size, size);
+
+    // Cenário temático além do gradiente: grade técnica (grid) ou neon ciano
+    if (bgTheme === "grid" || bgTheme === "neon") {
+      const neon = bgTheme === "neon";
+      ctx.save();
+      const glow = neon ? 0.16 : 0.07;
+      ctx.strokeStyle = neon ? `rgba(56, 224, 255, ${glow})` : `rgba(148, 173, 205, ${glow + 0.04})`;
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      for (let i = 1; i < GRID; i++) {
+        const p = Math.round(i * cellSize) + 0.5;
+        ctx.moveTo(p, 0); ctx.lineTo(p, size);
+        ctx.moveTo(0, p); ctx.lineTo(size, p);
+      }
+      ctx.stroke();
+
+      // Nós luminosos nos cruzamentos (brilham mais no neon)
+      const breath2 = 0.5 + 0.5 * Math.sin(now / 2000);
+      ctx.fillStyle = neon
+        ? `rgba(56, 224, 255, ${(0.10 + 0.08 * breath2).toFixed(3)})`
+        : `rgba(165, 195, 230, ${(0.045 + 0.03 * breath2).toFixed(3)})`;
+      ctx.beginPath();
+      for (let gx = 1; gx < GRID; gx++) {
+        for (let gy = 1; gy < GRID; gy++) {
+          ctx.rect(gx * cellSize - 1, gy * cellSize - 1, 2, 2);
+        }
+      }
+      ctx.fill();
+      ctx.restore();
+    }
+
+    // Tema de cenário: detalhes próprios além do gradiente base
+    if (bgTheme === "grid" || bgTheme === "neon") {
+      const neon = bgTheme === "neon";
+      ctx.save();
+      // Grade mais presente (bem visível no "grid"; neon com brilho ciano)
+      const glow = neon ? 0.16 : 0.07;
+      ctx.strokeStyle = neon ? `rgba(56, 224, 255, ${glow})` : `rgba(148, 190, 235, ${glow})`;
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      for (let i = 1; i < GRID; i++) {
+        const p = Math.round(i * cellSize) + 0.5;
+        ctx.moveTo(p, 0); ctx.lineTo(p, size);
+        ctx.moveTo(0, p); ctx.lineTo(size, p);
+      }
+      ctx.stroke();
+      // Pontos luminosos nos cruzamentos (mais fortes no neon)
+      ctx.fillStyle = neon ? `rgba(56, 224, 255, ${(0.10 + 0.05 * Math.sin(now / 1800)).toFixed(3)})` : `rgba(148, 190, 235, 0.16)`;
+      ctx.beginPath();
+      for (let gx = 1; gx < GRID; gx++) {
+        for (let gy = 1; gy < GRID; gy++) {
+          ctx.rect(gx * cellSize - 1, gy * cellSize - 1, 2, 2);
+        }
+      }
+      ctx.fill();
+      ctx.restore();
+    }
 
     const mx = size / 2, my = size / 2;
     let ox = 0, oy = 0;

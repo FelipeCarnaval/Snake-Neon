@@ -102,6 +102,10 @@
       <div class="overlay" id="overlayStart">
         <h1 class="overlay-title">SNAKE</h1>
         <p class="overlay-text">Coma, cresça e sobreviva.<br />Não bata nas paredes nem em você mesmo.</p>
+        <label class="start-nick">
+          <span class="s-main"><strong>Seu nome</strong><small>No placar global</small></span>
+          <input type="text" class="nick-input" id="optNickStart" maxlength="12" autocomplete="off" spellcheck="false" placeholder="Nome…" aria-label="Seu nome (aparece no placar global)" />
+        </label>
         <button class="btn primary" id="btnStart">Jogar</button>
         <p class="overlay-hint">Setas ou WASD movem a cobra. Espaço pausa.<br />No celular, deslize o dedo.</p>
       </div>
@@ -210,8 +214,20 @@
           <input type="range" min="0" max="100" step="1" value="60" id="optMusicVol" aria-label="Volume da trilha ambiente" />
         </label>
         <label class="setting-row">
-          <span class="s-main"><strong>Seu nome no placar global</strong><small>Aparece na classificação online</small></span>
-          <input type="text" class="nick-input" id="optNick" maxlength="12" autocomplete="off" spellcheck="false" placeholder="Nome…" aria-label="Seu nome no placar global" />
+          <span class="s-main"><strong>Velocidade</strong><small>Quanto mais calma, mais fácil no começo</small></span>
+          <select class="select-mini" id="optSpeed" aria-label="Velocidade do jogo">
+            <option value="slow">Devagar</option>
+            <option value="normal">Normal</option>
+            <option value="fast">Rápida</option>
+          </select>
+        </label>
+        <label class="setting-row">
+          <span class="s-main"><strong>Cenário de fundo</strong><small>Visual do palco do jogo</small></span>
+          <select class="select-mini" id="optBg" aria-label="Cenário de fundo">
+            <option value="space">Espaço</option>
+            <option value="grid">Grade</option>
+            <option value="neon">Neon</option>
+          </select>
         </label>
       </div>
       <div class="settings-leaderboard">
