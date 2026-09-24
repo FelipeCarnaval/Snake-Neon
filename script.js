@@ -721,6 +721,14 @@
     }, 3200);
   }
 
+  // Dica de tutorial exibida só na primeira vez que o recurso aparece
+  const TUTOR_KEY = "snakeTutor";
+  function tutorHint(id, name, desc) {
+    try { if (localStorage.getItem(TUTOR_KEY + ":" + id)) return; localStorage.setItem(TUTOR_KEY + ":" + id, "1"); }
+    catch (e) { return; }
+    showToast(name, desc);
+  }
+
   const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
   const lerp = (a, b, t) => a + (b - a) * t;
 
@@ -891,6 +899,7 @@
   let state; // 'ready' | 'playing' | 'resuming' | 'paused' | 'over'
   let particles, flashes, trail;
   let obstacles = [];
+  let obstacleBornAt = new Map(); // instante em que cada obstáculo "nasceu" (animação de spawn)
   let lastEatAt = 0;
   let speedLeft = 0;
   let speedActive = false;
@@ -901,6 +910,7 @@
   let resumeStart = 0;
   let cellSize = 20;
   let bgGrad = null, vignetteGrad = null;
+  let gridCache = null, gridCacheNodes = null; // offscreen da grade/nós (render 1×, não por frame)
   let deathToken = 0;
   let overAt = 0;          // timestamp da morte (slow-motion da explosão)
   let lastChewAt = -9999;  // último instante em que a cobra comeu (squash da cabeça)
@@ -934,6 +944,7 @@
     runMaxStreak = 0;
     runMs = 0;
     obstacles = [];
+    obstacleBornAt.clear();
     lastEatAt = 0;
     speedLeft = 0;
     speedActive = false;
@@ -1016,6 +1027,7 @@
       // Combo: sequência sem pausas multiplica os pontos
       if (mult > 1) {
         sfx.bonus();
+        tutorHint("combo", "Combo", "Coma sem pausas: cada fruta em sequência soma ×0.25 ao bônus, até ×3.");
         floats.push({
           x: head.x * cellSize + cellSize / 2,
           y: head.y * cellSize - cellSize * 0.3,
@@ -1063,6 +1075,9 @@
     food = { ...p, kind };
     foodBornAt = performance.now();
     foodExpiresAt = kind === "apple" ? Number.MAX_SAFE_INTEGER : performance.now() + FOOD_LIFETIME;
+    // Tutorial contextual: explica o item na primeira vez que ele aparece
+    if (kind === "gold") tutorHint("gold", "Gema dourada", "Vale 30 pts — mas some em 6 s, vá logo!");
+    else if (kind === "speed") tutorHint("speed", "Raio de velocidade", "Passo bem mais rápido por 4,5 s — ótimo para fugir e combar.");
   }
 
   /* ================= Combo, turbo e obstáculos ================= */
@@ -1122,6 +1137,7 @@
   // Obstáculos a partir do nível 3, sempre em células pares-pares (corredores livres)
   function spawnObstacles(lvl) {
     obstacles = [];
+    obstacleBornAt.clear();
     if (lvl < 3) return;
     const count = Math.min(3 + (lvl - 3), 14);
     const c = Math.floor(GRID / 2);
@@ -1138,6 +1154,7 @@
       const y = (Math.random() * GRID) | 0;
       if (x % 2 !== 0 || y % 2 !== 0) continue;
       if (!free(x, y)) continue;
+      obstacleBornAt.set(x + "," + y, performance.now());
       obstacles.push({ x, y });
     }
   }
@@ -1249,6 +1266,17 @@
     biomeTint = BIOMES[idx];
     // A moldura do tabuleiro acompanha a cor do bioma (glow em CSS)
     if (wrapper && biomeTint) wrapper.style.setProperty("--biome-rgb", biomeTint);
+    applyThemeColor();
+  }
+
+  // Barra/aba do navegador acompanha a cor do bioma (versão escurecida, discreta)
+  function applyThemeColor() {
+    const meta = document.querySelector('meta[name="theme-color"]');
+    if (!meta) return;
+    if (!biomeTint) { meta.content = "#070d17"; return; }
+    const [r, g, b] = biomeTint.split(",").map((v) => parseInt(v, 10));
+    const dark = (c) => Math.max(0, Math.round((c || 0) * 0.42));
+    meta.content = `#${[dark(r), dark(g), dark(b)].map((c) => c.toString(16).padStart(2, "0")).join("")}`;
   }
 
   // Banner central de subida de nível (com hit-stop breve)
@@ -1418,11 +1446,16 @@
       if (k === "tab") trapSettingsTab(e); // mantém o foco preso no dialog enquanto aberto
       return;
     }
+    if (k === "escape" && settingsOpen()) { closeSettings(); return; }
+    // Campo de texto (nome na tela inicial etc.) não aciona controles do jogo
+    const ae = document.activeElement;
+    if (ae && /^(input|textarea|select)$/i.test(ae.tagName)) return;
+    // Botão já focado: Space aciona o clique nativo — evita pausar e retomar em sequência
+    if (k === " " && ae && ae.closest && ae.closest("button")) return;
     if (["arrowup", "arrowdown", "arrowleft", "arrowright", " "].includes(k)) e.preventDefault();
     switch (k) {
       case "escape":
-        if (settingsOpen()) closeSettings();
-        else if (state === "playing" || state === "paused" || state === "resuming") togglePause();
+        if (state === "playing" || state === "paused" || state === "resuming") togglePause();
         break;
       case "arrowup": case "w": queueDirection(0, -1); break;
       case "arrowdown": case "s": queueDirection(0, 1); break;
@@ -1516,7 +1549,7 @@
     optMotion.addEventListener("change", () => { reducedMotion = optMotion.checked; savePref(RM_KEY, reducedMotion); applyFxPrefs(); });
     optSfxVol.addEventListener("input", () => setSfxVol(optSfxVol.valueAsNumber));
     optMusicVol.addEventListener("input", () => setMusicVol(optMusicVol.valueAsNumber));
-    if (optNick) optNick.addEventListener("input", () => saveNick(optNick.value));
+    if (optNick) optNick.addEventListener("input", () => { saveNick(optNick.value); updateStartGate(); });
     if (optNickStart) optNickStart.addEventListener("input", () => { saveNick(optNickStart.value); updateStartGate(); });
     if (optSpeed) optSpeed.addEventListener("change", () => { speedPref = optSpeed.value; if (!SPEED_TIERS[speedPref]) speedPref = "normal"; saveChoice(SPEED_KEY, speedPref); });
     if (optBg) optBg.addEventListener("change", () => { bgTheme = optBg.value; if (BG_THEMES.indexOf(bgTheme) < 0) bgTheme = "space"; saveChoice(BG_KEY, bgTheme); });
@@ -1611,14 +1644,28 @@
   }, { passive: true });
 
   // D-pad virtual (botões direcionais + pausa em telas touch)
+  // Segurar um botão repete a direção: esperado no celular, igual à repetição do teclado
   const dpadDirs = { btnUp: [0, -1], btnDown: [0, 1], btnLeft: [-1, 0], btnRight: [1, 0] };
+  const DPAD_REPEAT_MS = 150;
   for (const id of Object.keys(dpadDirs)) {
     const el = document.getElementById(id);
     if (!el) continue;
+    let holdTimer = null;
+    const fire = () => {
+      const nx = dpadDirs[id][0], ny = dpadDirs[id][1];
+      const before = inputQueue.length;
+      queueDirection(nx, ny);
+      if (inputQueue.length > before) vibe([6]); // pulso tátil só quando a virada entra
+    };
+    const stopHold = () => { if (holdTimer) { clearInterval(holdTimer); holdTimer = null; } };
     el.addEventListener("pointerdown", (e) => {
       e.preventDefault();
-      queueDirection(dpadDirs[id][0], dpadDirs[id][1]);
+      fire();
+      if (!holdTimer) holdTimer = setInterval(fire, DPAD_REPEAT_MS);
     });
+    el.addEventListener("pointerup", stopHold);
+    el.addEventListener("pointercancel", stopHold);
+    el.addEventListener("pointerleave", stopHold); // dedo desliza para fora: para de repetir
     el.addEventListener("contextmenu", (e) => e.preventDefault());
   }
   const btnPauseTouch = document.getElementById("btnPauseTouch");
@@ -1719,6 +1766,42 @@
     vignetteGrad = ctx.createRadialGradient(sz / 2, sz / 2, sz * 0.32, sz / 2, sz / 2, sz * 0.78);
     vignetteGrad.addColorStop(0, "rgba(2, 6, 14, 0)");
     vignetteGrad.addColorStop(1, "rgba(2, 6, 14, 0.5)");
+    buildGridCaches(size, dpr);
+  }
+
+  // Grade estática (linhas + nós) renderizada uma vez em offscreen:
+  // economiza ~440 chamadas de desenho por frame em celulares fracos
+  function buildGridCaches(size, dpr) {
+    const make = () => {
+      const c = document.createElement("canvas");
+      c.width = Math.round(size * dpr);
+      c.height = Math.round(size * dpr);
+      return c;
+    };
+    gridCache = make();
+    const g = gridCache.getContext("2d");
+    g.setTransform(dpr, 0, 0, dpr, 0, 0);
+    g.strokeStyle = "rgba(140, 165, 195, 0.035)"; // alpha já embutido
+    g.lineWidth = 1;
+    g.beginPath();
+    for (let i = 1; i < GRID; i++) {
+      const p = Math.round(i * cellSize) + 0.5;
+      g.moveTo(p, 0);
+      g.lineTo(p, GRID * cellSize);
+      g.moveTo(0, p);
+      g.lineTo(GRID * cellSize, p);
+    }
+    g.stroke();
+
+    gridCacheNodes = make();
+    const n = gridCacheNodes.getContext("2d");
+    n.setTransform(dpr, 0, 0, dpr, 0, 0);
+    n.fillStyle = "rgb(140, 165, 195)";
+    for (let gx = 1; gx < GRID; gx++) {
+      for (let gy = 1; gy < GRID; gy++) {
+        n.fillRect(gx * cellSize - 0.7, gy * cellSize - 0.7, 1.4, 1.4);
+      }
+    }
   }
   window.addEventListener("resize", resizeCanvas);
   window.addEventListener("beforeunload", () => { saveStats(); });
@@ -1742,37 +1825,46 @@
   }
 
   function drawGrid(now) {
-    // Linhas quase imperceptíveis
-    ctx.strokeStyle = "rgba(140, 165, 195, 0.035)";
-    ctx.lineWidth = 1;
-    ctx.beginPath();
-    for (let i = 1; i < GRID; i++) {
-      const p = Math.round(i * cellSize) + 0.5;
-      ctx.moveTo(p, 0);
-      ctx.lineTo(p, GRID * cellSize);
-      ctx.moveTo(0, p);
-      ctx.lineTo(GRID * cellSize, p);
-    }
-    ctx.stroke();
-
-    // Pontos luminosos nos cruzamentos, com "respiração" suave
-    const breath = 0.5 + 0.5 * Math.sin(now / 2400);
-    ctx.fillStyle = `rgba(140, 165, 195, ${0.05 + breath * 0.07})`;
-    ctx.beginPath();
-    for (let gx = 1; gx < GRID; gx++) {
-      for (let gy = 1; gy < GRID; gy++) {
-        ctx.rect(gx * cellSize - 0.7, gy * cellSize - 0.7, 1.4, 1.4);
+    const size = GRID * cellSize;
+    if (gridCache && gridCacheNodes) {
+      // Linhas estáticas (offscreen) + nós com a "respiração" via globalAlpha
+      ctx.drawImage(gridCache, 0, 0, size, size);
+      const breath = 0.5 + 0.5 * Math.sin(now / 2400);
+      ctx.globalAlpha = 0.05 + breath * 0.07;
+      ctx.drawImage(gridCacheNodes, 0, 0, size, size);
+      ctx.globalAlpha = 1;
+    } else {
+      // Fallback: desenha direto (se os caches ainda não foram construídos)
+      ctx.strokeStyle = "rgba(140, 165, 195, 0.035)";
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      for (let i = 1; i < GRID; i++) {
+        const p = Math.round(i * cellSize) + 0.5;
+        ctx.moveTo(p, 0);
+        ctx.lineTo(p, size);
+        ctx.moveTo(0, p);
+        ctx.lineTo(size, p);
       }
+      ctx.stroke();
+      const breath = 0.5 + 0.5 * Math.sin(now / 2400);
+      ctx.fillStyle = `rgba(140, 165, 195, ${0.05 + breath * 0.07})`;
+      ctx.beginPath();
+      for (let gx = 1; gx < GRID; gx++) {
+        for (let gy = 1; gy < GRID; gy++) {
+          ctx.rect(gx * cellSize - 0.7, gy * cellSize - 0.7, 1.4, 1.4);
+        }
+      }
+      ctx.fill();
     }
-    ctx.fill();
 
     // Brilho central "respirando"
-    const half = (GRID * cellSize) / 2;
-    const cg = ctx.createRadialGradient(half, half, 0, half, half, GRID * cellSize * 0.6);
+    const half = size / 2;
+    const breath = 0.5 + 0.5 * Math.sin(now / 2400);
+    const cg = ctx.createRadialGradient(half, half, 0, half, half, size * 0.6);
     cg.addColorStop(0, `rgba(74, 222, 128, ${0.04 + breath * 0.04})`);
     cg.addColorStop(1, "rgba(74, 222, 128, 0)");
     ctx.fillStyle = cg;
-    ctx.fillRect(0, 0, GRID * cellSize, GRID * cellSize);
+    ctx.fillRect(0, 0, size, size);
   }
 
   function drawFood(now) {
@@ -1848,13 +1940,13 @@
     // Faísca de "fruta fresca" no alto da maçã
     drawTwinkle(cx + r * 0.45, cy - r * 0.6, now, "255, 255, 255");
 
-    // Faíscas orbitando a gema
+    // Faíscas orbitando em tom da maçã (sem confundir com a gema, que é dourada)
     for (let i = 0; i < 3; i++) {
       const a = now / 700 + (i * Math.PI * 2) / 3;
       const sx = cx + Math.cos(a) * cellSize * 0.75;
       const sy = cy + Math.sin(a) * cellSize * 0.75;
       const tw = 0.5 + 0.5 * Math.sin(now / 160 + i * 2);
-      ctx.fillStyle = `rgba(253, 224, 71, ${0.3 + 0.45 * tw})`;
+      ctx.fillStyle = `rgba(251, 113, 133, ${0.28 + 0.4 * tw})`;
       ctx.beginPath();
       ctx.arc(sx, sy, 1.3, 0, Math.PI * 2);
       ctx.fill();
@@ -2003,10 +2095,15 @@
     for (const o of obstacles) {
       const ox = o.x * cellSize;
       const oy = o.y * cellSize;
-      const inset = cellSize * 0.14;
+      // Surgimento: o bloco "cresce" do centro e acende em ~300 ms
+      const born = obstacleBornAt.get(o.x + "," + o.y) || 0;
+      const st = fxVisual && !reducedMotion ? clamp((now - born) / 300, 0, 1) : 1;
+      const grow = 1 - Math.pow(1 - st, 3); // easeOutCubic: 1 → 0
+      const inset = cellSize * (0.14 + grow * 0.3);
       const pad = cellSize * 0.05 * pulse;
       const sz = cellSize - inset * 2;
       ctx.save();
+      ctx.globalAlpha = 0.35 + 0.65 * st;
       // Núcleo escuro com leve relevo
       ctx.fillStyle = "rgba(15, 26, 45, 0.95)";
       if (ctx.roundRect) { ctx.beginPath(); ctx.roundRect(ox + inset - pad, oy + inset - pad, sz + pad * 2, sz + pad * 2, cellSize * 0.2); ctx.fill(); }
@@ -2637,36 +2734,6 @@
       ctx.restore();
     }
 
-    // Tema de cenário: grade técnica (grid) ou neon ciano, em um único passe
-    if (bgTheme === "grid" || bgTheme === "neon") {
-      const neon = bgTheme === "neon";
-      ctx.save();
-      const glow = neon ? 0.16 : 0.07;
-      ctx.strokeStyle = neon ? `rgba(56, 224, 255, ${glow})` : `rgba(148, 173, 205, ${glow + 0.04})`;
-      ctx.lineWidth = 1;
-      ctx.beginPath();
-      for (let i = 1; i < GRID; i++) {
-        const p = Math.round(i * cellSize) + 0.5;
-        ctx.moveTo(p, 0); ctx.lineTo(p, size);
-        ctx.moveTo(0, p); ctx.lineTo(size, p);
-      }
-      ctx.stroke();
-
-      // Nós luminosos nos cruzamentos (brilham mais no neon)
-      const breath2 = 0.5 + 0.5 * Math.sin(now / 2000);
-      ctx.fillStyle = neon
-        ? `rgba(56, 224, 255, ${(0.10 + 0.08 * breath2).toFixed(3)})`
-        : `rgba(165, 195, 230, ${(0.045 + 0.03 * breath2).toFixed(3)})`;
-      ctx.beginPath();
-      for (let gx = 1; gx < GRID; gx++) {
-        for (let gy = 1; gy < GRID; gy++) {
-          ctx.rect(gx * cellSize - 1, gy * cellSize - 1, 2, 2);
-        }
-      }
-      ctx.fill();
-      ctx.restore();
-    }
-
     // Estrela cadente ocasional cruzando o palco (espaço)
     if (bgTheme === "space" && fxVisual && !reducedMotion) {
       const ph = (now % 9000) / 9000;
@@ -2752,6 +2819,14 @@
       ng1.addColorStop(0, `rgba(${biomeTint}, ${(0.05 + 0.02 * Math.sin(now / 4000)).toFixed(3)})`);
       ng1.addColorStop(1, `rgba(${biomeTint}, 0)`);
       ctx.fillStyle = ng1;
+      ctx.fillRect(0, 0, size, size);
+      // Halo complementar deslocado: profundidade extra no espaço
+      const n2x = mx + size * 0.3 - Math.cos(now / 12500) * size * 0.3 + ox * 0.6;
+      const n2y = my - size * 0.24 - Math.sin(now / 15000) * size * 0.24 + oy * 0.6;
+      const ng2 = ctx.createRadialGradient(n2x, n2y, 0, n2x, n2y, size * 0.46);
+      ng2.addColorStop(0, `rgba(94, 234, 212, ${(0.03 + 0.015 * Math.sin(now / 5200)).toFixed(3)})`);
+      ng2.addColorStop(1, "rgba(94, 234, 212, 0)");
+      ctx.fillStyle = ng2;
       ctx.fillRect(0, 0, size, size);
     }
 

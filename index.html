@@ -10,7 +10,7 @@
   <meta property="og:description" content="Coma, cresça e sobreviva: combos, gemas douradas, turbo e 4 biomas neon." />
   <meta property="og:type" content="website" />
   <meta property="og:url" content="https://felipecarnaval.github.io/Snake-Neon/" />
-  <meta property="og:image" content="https://felipecarnaval.github.io/Snake-Neon/icon-512.png" />
+  <meta property="og:image" content="https://felipecarnaval.github.io/snake-neon/icon-512.png" />
   <meta name="twitter:card" content="summary_large_image" />
   <title>Snake — Jogo da Cobrinha</title>
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%23070b14'/%3E%3Cpath d='M6 22C6 12 12 7 20 7c3 0 5 1 6 3-4 1-6 3-6 6 0 3 2 4 3 3-2 4-7 5-11 3l2 3-6-1 0-2z' fill='%23a3e635'/%3E%3Ccircle cx='23' cy='12' r='1.6' fill='%23f8fafc'/%3E%3C/svg%3E" />
@@ -202,6 +202,10 @@
           <input type="checkbox" id="optMotion" />
           <span class="switch" aria-hidden="true"></span>
         </label>
+        <label class="setting-row">
+          <span class="s-main"><strong>Seu nome</strong><small>Aparece no placar global</small></span>
+          <input type="text" class="nick-input" id="optNick" maxlength="12" autocomplete="off" spellcheck="false" placeholder="Nome…" aria-label="Seu nome (aparece no placar global)" />
+        </label>
         <label class="vol-row">
           <span class="vol-head">
             <span class="s-main"><strong>Volume efeitos</strong><small>0% = mudo</small></span>
@@ -259,7 +263,7 @@
     </section>
   </div>
 
-  <div class="toast-stack" id="toastStack" aria-live="polite"></div>
+  <div class="toast-stack" id="toastStack" role="status" aria-live="polite"></div>
 
   <script src="script.js"></script>
 </body>

@@ -775,6 +775,8 @@ body.no-vfx .canvas-wrapper::before {
     z-index: 40;
     pointer-events: none;
   }
+  /* Alvos de toque generosos na barra superior (recomendação ≥ 44px) */
+  .icon-btn { min-width: 42px; min-height: 42px; }
 }
 
 /* Telas de toque bem estreitas: d-pad e anel encolhem para não se tocarem */
