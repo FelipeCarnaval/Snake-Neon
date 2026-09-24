@@ -551,6 +551,49 @@ body.no-vfx .canvas-wrapper::before {
   line-height: 1.6;
 }
 
+/* Nome no overlay inicial: caixa escura, centrada, com foco visível */
+.start-nick {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  width: 100%;
+  max-width: 280px;
+  text-align: center;
+}
+.start-nick .s-main {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+.start-nick strong {
+  font-size: 0.88rem;
+  color: var(--text);
+}
+.start-nick small {
+  font-size: 0.68rem;
+  color: var(--muted);
+}
+.start-nick .nick-input {
+  width: 100%;
+  background: rgba(13, 23, 36, 0.85);
+  border: 1px solid rgba(140, 165, 195, 0.22);
+  border-radius: var(--r-md);
+  color: var(--text);
+  padding: 11px 14px;
+  font: inherit;
+  font-size: 1rem;
+  text-align: center;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+.start-nick .nick-input:focus-visible {
+  outline: none;
+  border-color: var(--cyan);
+  box-shadow: 0 0 0 2px rgba(34, 211, 238, 0.25);
+}
+.start-nick .nick-input::placeholder {
+  color: rgba(140, 165, 195, 0.5);
+}
+
 .badge {
   font-family: "Orbitron", sans-serif;
   font-size: 0.65rem;
