@@ -105,6 +105,7 @@
       <div class="overlay" id="overlayStart">
         <h1 class="overlay-title">SNAKE</h1>
         <p class="overlay-text">Coma, cresça e sobreviva.<br />Não bata nas paredes nem em você mesmo.</p>
+        <p class="overlay-records" id="overlayRecords"></p>
         <label class="start-nick">
           <span class="s-main"><strong>Seu nome</strong><small>No placar global</small></span>
           <input type="text" class="nick-input" id="optNickStart" maxlength="12" autocomplete="off" spellcheck="false" placeholder="Nome…" aria-label="Seu nome (aparece no placar global)" />
@@ -204,6 +205,11 @@
           <span class="switch" aria-hidden="true"></span>
         </label>
         <label class="setting-row">
+          <span class="s-main"><strong>Alto contraste</strong><small>Contornos escuros e formas claras</small></span>
+          <input type="checkbox" id="optContrast" />
+          <span class="switch" aria-hidden="true"></span>
+        </label>
+        <label class="setting-row">
           <span class="s-main"><strong>Modo hardcore</strong><small>Sem combo, gemas ou turbo — só maçãs e coragem</small></span>
           <input type="checkbox" id="optHard" />
           <span class="switch" aria-hidden="true"></span>
@@ -232,6 +238,13 @@
             <option value="slow">Devagar</option>
             <option value="normal">Normal</option>
             <option value="fast">Rápida</option>
+          </select>
+        </label>
+        <label class="setting-row">
+          <span class="s-main"><strong>Bordas</strong><small>Parede mata ou a cobra atravessa</small></span>
+          <select class="select-mini" id="optWrap" aria-label="Comportamento das bordas">
+            <option value="solid">Sólidas</option>
+            <option value="wrap">Atravessar</option>
           </select>
         </label>
         <label class="setting-row">

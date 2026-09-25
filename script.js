@@ -90,6 +90,8 @@
   const optHard = document.getElementById("optHard");
   const optSkin = document.getElementById("optSkin");
   const skinSwatches = document.getElementById("skinSwatches");
+  const optWrap = document.getElementById("optWrap");
+  const optContrast = document.getElementById("optContrast");
   const comboChip = document.getElementById("comboChip");
   const comboText = document.getElementById("comboText");
   const comboBarFill = document.getElementById("comboBarFill");
@@ -582,6 +584,8 @@
   const BG_KEY = "snakeBg";
   const SKIN_KEY = "snakeSkin";
   const HARD_KEY = "snakeHardcore";
+  const WRAP_KEY = "snakeWrap";
+  const CONTRAST_KEY = "snakeContrast";
   const mqReduce = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)");
   let fxParticles = loadPref(FX_P_KEY, true);
   let fxVisual = loadPref(FX_V_KEY, true);
@@ -600,6 +604,9 @@
   let bgTheme = loadChoice(BG_KEY, "space");
   if (BG_THEMES.indexOf(bgTheme) < 0) bgTheme = "space";
   let hardcore = loadPref(HARD_KEY, false); // modo duro: sem combo, gemas ou turbo
+  let wrapMode = loadChoice(WRAP_KEY, "solid"); // "solid" | "wrap" (atravessar a parede)
+  if (wrapMode !== "solid" && wrapMode !== "wrap") wrapMode = "solid";
+  let highContrast = loadPref(CONTRAST_KEY, false); // contornos escuros nas comidas/cobra
 
   function applyFxPrefs() {
     document.body.classList.toggle("no-vfx", !fxVisual);
@@ -893,6 +900,12 @@
       btnStart.disabled = !ok;
       btnStart.setAttribute("aria-disabled", ok ? "false" : "true");
     }
+    const rec = document.getElementById("overlayRecords");
+    if (rec) rec.textContent = "Seus recordes: " + (stats.best | 0) + " pts · nível máx " + (stats.maxLevel | 0);
+    const txt = document.querySelector("#overlayStart .overlay-text");
+    if (txt) txt.innerHTML = wrapMode === "wrap"
+      ? "Coma, cresça e sobreviva.<br />Atravesse as paredes, mas cuidado com você mesmo."
+      : "Coma, cresça e sobreviva.<br />Não bata nas paredes nem em você mesmo.";
   }
 
   async function lbFetch(path, opts) {
@@ -1124,8 +1137,13 @@
 
     const head = { x: snake[0].x + dir.x, y: snake[0].y + dir.y };
 
-    // Colisão com parede
-    if (head.x < 0 || head.y < 0 || head.x >= GRID || head.y >= GRID) return gameOver();
+    // Colisão com parede (ou atravessa para o outro lado, se bordas forem "wrap")
+    if (head.x < 0 || head.y < 0 || head.x >= GRID || head.y >= GRID) {
+      if (wrapMode !== "wrap") return gameOver();
+      head.x = (head.x + GRID) % GRID;
+      head.y = (head.y + GRID) % GRID;
+      prevSnake[0] = { ...head }; // teletransporte limpo: não interpola cruzando a borda
+    }
 
     // Colisão com obstáculo
     if (obstacles.some(o => o.x === head.x && o.y === head.y)) return gameOver();
@@ -1673,7 +1691,9 @@
     optParticles.checked = fxParticles;
     optVisual.checked = fxVisual;
     optMotion.checked = reducedMotion;
+    optContrast.checked = highContrast;
     if (optSpeed) optSpeed.value = speedPref;
+    if (optWrap) optWrap.value = wrapMode;
     if (optBg) optBg.value = bgTheme;
     if (optNickStart) optNickStart.value = loadNick();
     if (optHard) optHard.checked = hardcore;
@@ -1731,6 +1751,12 @@
     if (optNick) optNick.addEventListener("input", () => { saveNick(optNick.value); updateStartGate(); });
     if (optNickStart) optNickStart.addEventListener("input", () => { saveNick(optNickStart.value); updateStartGate(); });
     if (optSpeed) optSpeed.addEventListener("change", () => { speedPref = optSpeed.value; if (!SPEED_TIERS[speedPref]) speedPref = "normal"; saveChoice(SPEED_KEY, speedPref); });
+    if (optWrap) optWrap.addEventListener("change", () => {
+      wrapMode = optWrap.value === "wrap" ? "wrap" : "solid";
+      saveChoice(WRAP_KEY, wrapMode);
+      updateStartGate();
+    });
+    if (optContrast) optContrast.addEventListener("change", () => { highContrast = optContrast.checked; savePref(CONTRAST_KEY, highContrast); });
     if (optBg) optBg.addEventListener("change", () => { bgTheme = optBg.value; if (BG_THEMES.indexOf(bgTheme) < 0) bgTheme = "space"; saveChoice(BG_KEY, bgTheme); });
     if (optHard) optHard.addEventListener("change", () => {
       hardcore = optHard.checked;
@@ -2144,6 +2170,11 @@
     ctx.fill();
     // Aro de definição (silhueta legível contra o brilho)
     ctx.shadowBlur = 0;
+    if (highContrast) {
+      ctx.strokeStyle = "rgba(8, 12, 24, 0.9)";
+      ctx.lineWidth = Math.max(cellSize * 0.11, 2.5);
+      ctx.stroke();
+    }
     ctx.strokeStyle = "rgba(136, 19, 55, 0.7)";
     ctx.lineWidth = Math.max(cellSize * 0.045, 1);
     ctx.stroke();
@@ -2280,6 +2311,11 @@
       ctx.lineTo(cx - r * 0.12, cy + r * 0.1);
       ctx.closePath();
       ctx.fill();
+      if (highContrast) {
+        ctx.strokeStyle = "rgba(8, 12, 24, 0.9)";
+        ctx.lineWidth = Math.max(r * 0.13, 2);
+        ctx.stroke();
+      }
     }
     ctx.restore();
 
@@ -2360,6 +2396,23 @@
       if (ctx.roundRect) { ctx.beginPath(); ctx.roundRect(x0 + ringW + 1, y0 + ringW + 1, core - 2 * ringW - 2, Math.max(core * 0.22, 1), 4); ctx.stroke(); }
       else ctx.strokeRect(x0 + ringW + 1, y0 + ringW + 1, core - 2 * ringW - 2, Math.max(core * 0.22, 1));
 
+      // Alto contraste: faixas diagonais de perigo (padrão de zebra) no núcleo
+      if (highContrast) {
+        ctx.save();
+        ctx.beginPath();
+        ctx.rect(x0, y0, core, core);
+        ctx.clip();
+        ctx.strokeStyle = "rgba(240, 248, 255, 0.22)";
+        ctx.lineWidth = Math.max(cellSize * 0.07, 2);
+        for (let i = -core; i < core; i += cellSize * 0.36) {
+          ctx.beginPath();
+          ctx.moveTo(x0 + i, y0 + core);
+          ctx.lineTo(x0 + i + core, y0);
+          ctx.stroke();
+        }
+        ctx.restore();
+      }
+
       // Cruz de "bloqueio" + núcleo aceso: legíveis mesmo em tiles brilhantes
       ctx.strokeStyle = `rgba(${rgb}, ${(0.34 + 0.2 * pulse).toFixed(3)})`;
       ctx.lineWidth = Math.max(cellSize * 0.045, 1);
@@ -2421,6 +2474,15 @@
     ctx.lineWidth = bodyW;
     ctx.stroke(path);
     ctx.restore();
+
+    // Alto contraste: contorno escuro que isola a cobra de qualquer fundo
+    if (highContrast) {
+      ctx.save();
+      ctx.strokeStyle = "rgba(6, 10, 20, 0.9)";
+      ctx.lineWidth = bodyW * 1.24;
+      ctx.stroke(path);
+      ctx.restore();
+    }
 
     // Motion blur: fantasmas translúcidos da cabeça em alta velocidade
     if (fxVisual && stepInterval() <= 105 && trail.length > 14) {
@@ -2698,6 +2760,12 @@
     // Cabeça em elipse alongada na direção do movimento (mais "cobrinha")
     ctx.ellipse(hp.x, hp.y, hr * 1.28, hr, Math.atan2(ey, ex), 0, Math.PI * 2);
     ctx.fill();
+    // Alto contraste: contorno escuro reforçado ao redor da cabeça
+    if (highContrast) {
+      ctx.strokeStyle = "rgba(6, 10, 20, 0.92)";
+      ctx.lineWidth = Math.max(cellSize * 0.1, 2.5);
+      ctx.stroke();
+    }
     // Aro de definição da cabeça (silhueta legível contra o fundo brilhante)
     ctx.strokeStyle = `rgba(${skin.rim}, 0.45)`;
     ctx.lineWidth = Math.max(cellSize * 0.045, 1);
@@ -2837,6 +2905,11 @@
     }
     ctx.closePath();
     ctx.fill();
+    if (highContrast) {
+      ctx.strokeStyle = "rgba(8, 12, 24, 0.9)";
+      ctx.lineWidth = Math.max(r * 0.14, 2);
+      ctx.stroke();
+    }
   }
 
   // Faísca de 4 pontas que acende e apaga (brilho de "fruta fresca")
@@ -3233,6 +3306,9 @@
         getSkin: () => currentSkin().id,
         setSkinChoice: v => (skinChoice = v),
         setHardcore: v => (hardcore = v),
+        getWrap: () => wrapMode,
+        setWrap: v => (wrapMode = v === "wrap" ? "wrap" : "solid"),
+        setHighContrast: v => (highContrast = !!v),
         setSnake: v => (snake = v), setDir: v => (dir = v), setFood: v => (food = v),
         setObstacles: v => (obstacles = v), setSpeedActive: v => (speedActive = v),
         step, resetGame, placeFood, gameOver, spawnObstacles, comboMult, stepInterval });

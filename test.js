@@ -254,5 +254,21 @@ T.setSkinChoice("lime");
 const bio = T.getStats().biomes;
 ok(bio && (bio[0].best | 0) >= 0 && typeof bio[0].eaten === "number", "stats.biomes populado");
 
+// Q: bordas — "solid" (padrão) mata na parede; "wrap" atrevessa e reaparece
+ok(T.getWrap() === "solid", "bordas padrão são sólidas");
+T.resetGame();
+T.setSnake([{ x: 0, y: 5 }, { x: 1, y: 5 }, { x: 2, y: 5 }]);
+T.setDir({ x: -1, y: 0 });
+T.step();
+ok(T.getState() === "over", "solid: bater na parede = game over");
+T.resetGame();
+T.setWrap("wrap");
+T.setSnake([{ x: 0, y: 5 }, { x: 1, y: 5 }, { x: 2, y: 5 }]);
+T.setDir({ x: -1, y: 0 });
+T.step();
+const h = T.getSnake()[0];
+ok(h.x === 20 && h.y === 5 && T.getSnake().length >= 3, "wrap: atravessar parede não mata e a cabeça reaparece");
+T.setWrap("solid");
+
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail === 0 ? 0 : 1);

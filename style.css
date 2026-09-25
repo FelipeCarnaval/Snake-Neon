@@ -566,6 +566,15 @@ body.no-vfx .canvas-wrapper::before {
   text-wrap: pretty;
 }
 
+.overlay-records {
+  color: rgba(163, 230, 53, 0.85);
+  font-size: 0.78rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  margin-top: 4px;
+  text-wrap: pretty;
+}
+
 .overlay-hint {
   color: rgba(140, 165, 195, 0.7);
   font-size: 0.75rem;
