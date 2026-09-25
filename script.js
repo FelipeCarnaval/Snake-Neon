@@ -86,6 +86,9 @@
   const optNickStart = document.getElementById("optNickStart");
   const optSpeed = document.getElementById("optSpeed");
   const optBg = document.getElementById("optBg");
+  const hcBadge = document.getElementById("hcBadge");
+  const optHard = document.getElementById("optHard");
+  const optSkin = document.getElementById("optSkin");
   const comboChip = document.getElementById("comboChip");
   const comboText = document.getElementById("comboText");
   const comboBarFill = document.getElementById("comboBarFill");
@@ -576,6 +579,8 @@
   const RM_KEY = "snakeReducedMotion";
   const SPEED_KEY = "snakeSpeed";
   const BG_KEY = "snakeBg";
+  const SKIN_KEY = "snakeSkin";
+  const HARD_KEY = "snakeHardcore";
   const mqReduce = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)");
   let fxParticles = loadPref(FX_P_KEY, true);
   let fxVisual = loadPref(FX_V_KEY, true);
@@ -593,6 +598,7 @@
   if (!SPEED_TIERS[speedPref]) speedPref = "normal";
   let bgTheme = loadChoice(BG_KEY, "space");
   if (BG_THEMES.indexOf(bgTheme) < 0) bgTheme = "space";
+  let hardcore = loadPref(HARD_KEY, false); // modo duro: sem combo, gemas ou turbo
 
   function applyFxPrefs() {
     document.body.classList.toggle("no-vfx", !fxVisual);
@@ -642,6 +648,12 @@
   function loadStats() {
     try {
       const s = JSON.parse(localStorage.getItem(STATS_KEY) || "{}");
+      const raw = s.biomes && typeof s.biomes === "object" ? s.biomes : {};
+      const biomes = {};
+      for (let i = 0; i < BIOMES.length; i++) {
+        const r = raw[i] || {};
+        biomes[i] = { best: r.best | 0, eaten: r.eaten | 0, ms: r.ms | 0 };
+      }
       return {
         eaten: s.eaten | 0,
         games: s.games | 0,
@@ -652,9 +664,12 @@
         golds: s.golds | 0,
         turbos: s.turbos | 0,
         ms: s.ms | 0,
+        biomes,
       };
     } catch (e) {
-      return { eaten: 0, games: 0, best: 0, maxLevel: 1, maxSize: 3, maxCombo: 0, golds: 0, turbos: 0, ms: 0 };
+      const biomes = {};
+      for (let i = 0; i < BIOMES.length; i++) biomes[i] = { best: 0, eaten: 0, ms: 0 };
+      return { eaten: 0, games: 0, best: 0, maxLevel: 1, maxSize: 3, maxCombo: 0, golds: 0, turbos: 0, ms: 0, biomes };
     }
   }
   function saveStats() {
@@ -678,7 +693,107 @@
     { id: "record", name: "Lenda do tabuleiro", desc: "Superou o recorde" },
     { id: "gold10", name: "Colecionador de joias", desc: "Pegou 10 gemas douradas" },
     { id: "turbo5", name: "Turbinado", desc: "Ativou o turbo 5 vezes" },
+    { id: "hc4", name: "Puro e duro", desc: "Chegou ao nível 4 no modo hardcore" },
   ];
+
+  /* Skins da cobra: a primeira é padrão (sempre disponível); as demais
+     desbloqueiam ao cumprir a conquista em `req`. A paleta alimenta o rastro,
+     o halo, o gradiente do corpo/cabeça e as partículas de morte. */
+  const SNAKE_SKINS = [
+    {
+      id: "lime", name: "Neon Clássico", desc: "O verde-limão original",
+      rgb: "163, 230, 53",
+      body0: "#d9f99d", body1: "#a3e635", body2: "#22c55e", body3: "#0f766e",
+      head0: "#ecfccb", head1: "#d9f99d", head2: "#84cc16",
+      glass0: "rgba(254, 255, 214, 0.5)", glass1: "rgba(217, 249, 157, 0.22)", glass2: "217, 249, 157",
+      heat: "236, 252, 203", rim: "217, 249, 157",
+      dissolveA: "#a3e635", dissolveB: "#22c55e",
+    },
+    {
+      id: "crystal", name: "Gelo Cristal", desc: "Desbloqueia com 10 maçãs comidas", req: "ten",
+      rgb: "165, 243, 252",
+      body0: "#cffafe", body1: "#22d3ee", body2: "#0ea5e9", body3: "#1e3a8a",
+      head0: "#f0fdff", head1: "#cffafe", head2: "#38bdf8",
+      glass0: "rgba(240, 253, 255, 0.5)", glass1: "rgba(207, 250, 254, 0.22)", glass2: "207, 250, 254",
+      heat: "224, 254, 254", rim: "207, 250, 254",
+      dissolveA: "#22d3ee", dissolveB: "#0ea5e9",
+    },
+    {
+      id: "amethyst", name: "Abismo Violeta", desc: "Desbloqueia ao chegar ao nível 5", req: "lvl5",
+      rgb: "196, 181, 253",
+      body0: "#ede9fe", body1: "#a78bfa", body2: "#7c3aed", body3: "#312e81",
+      head0: "#f5f3ff", head1: "#ede9fe", head2: "#a78bfa",
+      glass0: "rgba(245, 243, 255, 0.5)", glass1: "rgba(237, 233, 254, 0.22)", glass2: "237, 233, 254",
+      heat: "237, 233, 254", rim: "221, 214, 254",
+      dissolveA: "#a78bfa", dissolveB: "#7c3aed",
+    },
+    {
+      id: "ember", name: "Cinzas Âmbar", desc: "Desbloqueia com 10 gemas douradas", req: "gold10",
+      rgb: "251, 191, 36",
+      body0: "#fef9c3", body1: "#fbbf24", body2: "#f59e0b", body3: "#92400e",
+      head0: "#fefce8", head1: "#fef9c3", head2: "#fbbf24",
+      glass0: "rgba(254, 252, 232, 0.5)", glass1: "rgba(254, 249, 195, 0.22)", glass2: "254, 249, 195",
+      heat: "254, 252, 232", rim: "253, 230, 138",
+      dissolveA: "#fbbf24", dissolveB: "#f59e0b",
+    },
+    {
+      id: "plasma", name: "Plasma Ciano", desc: "Desbloqueia com 5 turbos", req: "turbo5",
+      rgb: "103, 232, 249",
+      body0: "#ecfeff", body1: "#67e8f9", body2: "#22d3ee", body3: "#0e7490",
+      head0: "#f0fdfa", head1: "#ccfbf1", head2: "#5eead4",
+      glass0: "rgba(240, 253, 250, 0.5)", glass1: "rgba(204, 251, 241, 0.22)", glass2: "204, 251, 241",
+      heat: "204, 251, 241", rim: "153, 246, 228",
+      dissolveA: "#67e8f9", dissolveB: "#22d3ee",
+    },
+    {
+      id: "royal", name: "Vulcão Carmesim", desc: "Desbloqueia ao superar o recorde", req: "record",
+      rgb: "251, 113, 133",
+      body0: "#ffe4e6", body1: "#fb7185", body2: "#e11d48", body3: "#881337",
+      head0: "#fff1f2", head1: "#ffe4e6", head2: "#fb7185",
+      glass0: "rgba(255, 241, 242, 0.5)", glass1: "rgba(255, 228, 230, 0.22)", glass2: "255, 228, 230",
+      heat: "255, 228, 230", rim: "254, 205, 211",
+      dissolveA: "#fb7185", dissolveB: "#e11d48",
+    },
+    {
+      id: "obsidian", name: "Obsidiana Premium", desc: "Desbloqueia com 50 maçãs comidas", req: "fifty",
+      rgb: "148, 163, 184",
+      body0: "#e2e8f0", body1: "#94a3b8", body2: "#475569", body3: "#1e293b",
+      head0: "#f8fafc", head1: "#e2e8f0", head2: "#94a3b8",
+      glass0: "rgba(248, 250, 252, 0.5)", glass1: "rgba(226, 232, 240, 0.22)", glass2: "226, 232, 240",
+      heat: "226, 232, 240", rim: "203, 213, 225",
+      dissolveA: "#94a3b8", dissolveB: "#475569",
+    },
+  ];
+  const SKIN_BY_REQ = {};
+  for (const sk of SNAKE_SKINS) if (sk.req) SKIN_BY_REQ[sk.req] = sk;
+
+  function skinUnlocked(sk) { return !sk.req || !!unlocked[sk.req]; }
+
+  let skinChoice = loadChoice(SKIN_KEY, SNAKE_SKINS[0].id);
+  if (!SNAKE_SKINS.some((sk) => sk.id === skinChoice)) skinChoice = SNAKE_SKINS[0].id;
+  if (!skinUnlocked(SNAKE_SKINS.find((sk) => sk.id === skinChoice) || SNAKE_SKINS[0])) skinChoice = SNAKE_SKINS[0].id;
+
+  function currentSkin() {
+    const picked = SNAKE_SKINS.find((sk) => sk.id === skinChoice);
+    return picked && skinUnlocked(picked) ? picked : SNAKE_SKINS[0];
+  }
+
+  function rebuildSkinOptions() {
+    if (!optSkin) return;
+    optSkin.textContent = "";
+    for (const sk of SNAKE_SKINS) {
+      const op = document.createElement("option");
+      op.value = sk.id;
+      if (skinUnlocked(sk)) {
+        op.textContent = sk.name;
+      } else {
+        op.textContent = sk.name + " — " + sk.desc;
+        op.disabled = true;
+      }
+      if (sk.id === skinChoice) op.selected = true;
+      optSkin.appendChild(op);
+    }
+  }
 
   function checkAchievements(s) {
     for (const a of ACHIEVEMENTS) {
@@ -691,11 +806,14 @@
       else if (a.id === "record") hit = !!s.record;
       else if (a.id === "gold10") hit = (s.golds | 0) >= 10;
       else if (a.id === "turbo5") hit = (s.turbos | 0) >= 5;
+      else if (a.id === "hc4") hit = (s.level | 0) >= 4 && !!s.hardcore;
       if (!hit) continue;
       unlocked[a.id] = true;
       saveAchievements();
       showToast(a.name, a.desc);
       sfx.achieve();
+      // Conquista que desbloqueia skin: avisa que dá para trocar a cor da cobra
+      if (SKIN_BY_REQ[a.id]) showToast("Skin desbloqueada", "Confira em Configurações → Skin: " + SKIN_BY_REQ[a.id].name);
     }
   }
 
@@ -915,6 +1033,9 @@
   let statsTimer = null;
   let foodExpiresAt = Number.MAX_SAFE_INTEGER;
   let lastBiomeIdx = -1;
+  let biomeIdx = 0;
+  const biomeEats = [0, 0, 0, 0, 0];  // comida por bioma na partida atual
+  const biomeMs = [0, 0, 0, 0, 0];    // tempo por bioma na partida atual
   let freezeUntil = 0;
   let resumeStart = 0;
   let cellSize = 20;
@@ -961,6 +1082,8 @@
     overAt = 0;
     lastChewAt = -9999;
     energyPulseAt = -9999;
+    biomeEats.fill(0);
+    biomeMs.fill(0);
     if (levelBanner) levelBanner.classList.remove("show");
     if (countdownEl) countdownEl.classList.add("hidden");
     refreshBiome();
@@ -971,7 +1094,7 @@
     spawnAt = lastStep;
     headPx = null;
     // Anel de "nascimento" no centro do tabuleiro
-    flashes.push({ x: (GRID * cellSize) / 2, y: (GRID * cellSize) / 2, r: cellSize, alpha: 0.55, w: 2, spd: cellSize * 0.16, color: "163, 230, 53" });
+    flashes.push({ x: (GRID * cellSize) / 2, y: (GRID * cellSize) / 2, r: cellSize, alpha: 0.55, w: 2, spd: cellSize * 0.16, color: currentSkin().rgb });
   }
 
   function stepInterval() {
@@ -1010,6 +1133,7 @@
       lastChewAt = performance.now();
       energyPulseAt = lastChewAt;
       stats.eaten++;
+      biomeEats[biomeIdx]++;
       if (kind === "gold") stats.golds++;
       else if (kind === "speed") stats.turbos++;
       saveStatsSoon();
@@ -1046,7 +1170,7 @@
         });
         flashes.push({ x: head.x * cellSize + cellSize / 2, y: head.y * cellSize + cellSize / 2, r: cellSize * 0.3, alpha: 0.6, w: 2, spd: cellSize * 0.12, color: "196, 181, 253" });
       }
-      checkAchievements({ totalEaten: stats.eaten, level, golds: stats.golds, turbos: stats.turbos });
+      checkAchievements({ totalEaten: stats.eaten, level, golds: stats.golds, turbos: stats.turbos, hardcore });
       placeFood();
     } else {
       snake.pop();
@@ -1073,7 +1197,8 @@
     }
     if (!p) { food = null; return; } // tabuleiro 100% cheio
     let kind = "apple";
-    if (!forcePlain) {
+    if (!forcePlain && !hardcore) {
+      // Modo duro: só maçãs. Nos demais, gemas e turbos entram no sorteio
       const r = Math.random();
       if (speedActive) {
         // Durante o turbo, só existe a gema dourada além da maçã comum
@@ -1091,6 +1216,7 @@
 
   /* ================= Combo, turbo e obstáculos ================= */
   function comboMult(streak) {
+    if (hardcore) return 1; // modo duro: bônus fixo, sem multiplicador
     return Math.min(1 + (streak - 1) * COMBO_STEP, COMBO_MAX);
   }
 
@@ -1198,7 +1324,7 @@
         if (food && obstacles.some(o => o.x === food.x && o.y === food.y)) placeFood();
         freezeUntil = performance.now() + 340; // hit-stop curto
         showLevelBanner(lv);
-        checkAchievements({ totalEaten: stats.eaten, level });
+        checkAchievements({ totalEaten: stats.eaten, level, hardcore });
       }
       // Alerta de recorde próximo e celebração ao superá-lo em tempo real
       if (prevBest > 0 && !recordWarned && score >= prevBest - 30 && score <= prevBest) {
@@ -1266,6 +1392,7 @@
   // Matiz do "bioma" muda a cada 5 níveis
   function refreshBiome() {
     const idx = Math.floor((level - 1) / 5) % BIOMES.length;
+    biomeIdx = idx;
     if (idx !== lastBiomeIdx) {
       lastBiomeIdx = idx;
       if (idx > 0 && level > 1 && BIOME_NAMES[idx]) {
@@ -1323,13 +1450,14 @@
         vr: (Math.random() - 0.5) * 0.25,
       });
     }
-    checkAchievements({ totalEaten: stats.eaten, level, record: true });
+    checkAchievements({ totalEaten: stats.eaten, level, record: true, hardcore });
   }
 
   function gameOver() {
     state = "over";
     overAt = performance.now();
     freezeUntil = 0;
+    syncPauseAria();
     if (countdownEl) countdownEl.classList.add("hidden");
     if (levelBanner) levelBanner.classList.remove("show");
     sfx.stopAmbient();
@@ -1359,7 +1487,7 @@
     finalScoreEl.textContent = score;
     newRecordBadge.classList.toggle("hidden", !isRecord);
     if (isRecord) setTimeout(() => sfx.record(), 700);
-    checkAchievements({ totalEaten: stats.eaten, level, record: isRecord });
+    checkAchievements({ totalEaten: stats.eaten, level, record: isRecord, hardcore });
 
     // Placar global: badge de superação do recorde mundial + envio com throttle
     const isGlobalRecord = score > 0 && globalRecord !== null && score > globalRecord;
@@ -1379,6 +1507,13 @@
     stats.maxSize = Math.max(stats.maxSize, finalLen);
     stats.maxCombo = Math.max(stats.maxCombo, runMaxStreak);
     stats.ms += Math.round(runMs);
+    // Statísticas por bioma: maçãs e tempo de cada cenário + recorde do bioma de fim
+    for (let i = 0; i < BIOMES.length; i++) {
+      stats.biomes[i].eaten += biomeEats[i];
+      stats.biomes[i].ms += Math.round(biomeMs[i]);
+    }
+    const endBiome = Math.floor((level - 1) / 5) % BIOMES.length;
+    stats.biomes[endBiome].best = Math.max(stats.biomes[endBiome].best, score);
     saveStats();
     hideChips();
     fillGameOverStats(finalLen);
@@ -1404,6 +1539,7 @@
     hideOverlay(overlayGameOver);
     hideOverlay(overlayPause);
     btnPause.textContent = "Pausar";
+    syncPauseAria();
     lastStep = performance.now();
   }
 
@@ -1414,6 +1550,9 @@
     freezeUntil = resumeStart + RESUME_FREEZE + 200;
     hideOverlay(overlayPause);
     btnPause.textContent = "Pausar";
+    syncPauseAria();
+    // Hardcore: se ligado durante a pausa com uma gema na mesa, vira maçã
+    if (hardcore && food && food.kind !== "apple") placeFood(true);
     if (countdownEl) {
       countdownEl.classList.remove("hidden");
       countdownEl.textContent = "3";
@@ -1421,6 +1560,13 @@
       void countdownEl.offsetWidth;
       countdownEl.classList.add("pulse");
     }
+  }
+
+  // Estado "pausado" refletido nos controles de pausa (acessibilidade)
+  function syncPauseAria() {
+    const p = String(state === "paused");
+    if (btnPause) btnPause.setAttribute("aria-pressed", p);
+    if (btnPauseTouch) btnPauseTouch.setAttribute("aria-pressed", p);
   }
 
   function togglePause() {
@@ -1435,6 +1581,7 @@
     } else if (state === "paused") {
       resume();
     }
+    syncPauseAria();
   }
 
   function queueDirection(nx, ny) {
@@ -1514,6 +1661,8 @@
     if (optSpeed) optSpeed.value = speedPref;
     if (optBg) optBg.value = bgTheme;
     if (optNickStart) optNickStart.value = loadNick();
+    if (optHard) optHard.checked = hardcore;
+    if (optSkin) optSkin.value = skinChoice;
     if (optSfxVol) {
       optSfxVol.value = Math.round(sfx.vol * 100);
       if (sfxVolVal) sfxVolVal.textContent = Math.round(sfx.vol * 100) + "%";
@@ -1533,6 +1682,9 @@
     syncSettingsControls();
     fillTotals();
     fillAchievements();
+    rebuildSkinOptions();
+    fillBiomes();
+    syncHardcoreUI();
     if (optSpeed) optSpeed.value = speedPref;
     if (optBg) optBg.value = bgTheme;
     if (optNickStart) optNickStart.value = loadNick();
@@ -1565,6 +1717,18 @@
     if (optNickStart) optNickStart.addEventListener("input", () => { saveNick(optNickStart.value); updateStartGate(); });
     if (optSpeed) optSpeed.addEventListener("change", () => { speedPref = optSpeed.value; if (!SPEED_TIERS[speedPref]) speedPref = "normal"; saveChoice(SPEED_KEY, speedPref); });
     if (optBg) optBg.addEventListener("change", () => { bgTheme = optBg.value; if (BG_THEMES.indexOf(bgTheme) < 0) bgTheme = "space"; saveChoice(BG_KEY, bgTheme); });
+    if (optHard) optHard.addEventListener("change", () => {
+      hardcore = optHard.checked;
+      savePref(HARD_KEY, hardcore);
+      if (hardcore && speedActive) { speedActive = false; speedLeft = 0; hideChips(); }
+      syncHardcoreUI();
+    });
+    if (optSkin) optSkin.addEventListener("change", () => {
+      const sk = SNAKE_SKINS.find((s) => s.id === optSkin.value && skinUnlocked(s));
+      if (!sk) { rebuildSkinOptions(); return; }
+      skinChoice = sk.id;
+      saveChoice(SKIN_KEY, skinChoice);
+    });
   }
 
   // Mantém o Tab circulando dentro do dialog de configurações (focus trap)
@@ -1602,6 +1766,32 @@
       li.appendChild(t);
       list.appendChild(li);
     }
+  }
+
+  // Recorde, maçãs e tempo por bioma (painel de configurações)
+  function fillBiomes() {
+    const list = document.getElementById("biomeList");
+    if (!list) return;
+    list.textContent = "";
+    for (let i = 0; i < BIOMES.length; i++) {
+      const b = stats.biomes[i];
+      const li = document.createElement("li");
+      li.className = "biome-row";
+      const name = document.createElement("span");
+      name.className = "biome-name";
+      name.textContent = i === 0 ? "Núcleo Neon" : BIOME_NAMES[i];
+      const vals = document.createElement("span");
+      vals.className = "biome-vals";
+      vals.textContent = `Recorde ${b.best} · ${b.eaten} maçãs · ${fmtTime(b.ms)}`;
+      li.appendChild(name);
+      li.appendChild(vals);
+      list.appendChild(li);
+    }
+  }
+
+  // Badge de modo hardcore no HUD
+  function syncHardcoreUI() {
+    if (hcBadge) hcBadge.classList.toggle("hidden", !hardcore);
   }
 
   // Compartilhar resultado: Web Share API com fallback para copiar o link
@@ -1719,12 +1909,13 @@
       }
     }
     // Explosão em anel duplo
-    flashes.push({ x: cx, y: cy, r: cellSize * 0.35, alpha: 0.85, w: 2.5, spd: cellSize * 0.085, color: "163, 230, 53" });
+    flashes.push({ x: cx, y: cy, r: cellSize * 0.35, alpha: 0.85, w: 2.5, spd: cellSize * 0.085, color: currentSkin().rgb });
     flashes.push({ x: cx, y: cy, r: cellSize * 0.15, alpha: 0.7, w: 1.5, spd: cellSize * 0.14, color: "253, 224, 71" });
   }
 
   // A cobrinha se "desmonta" em partículas no game over
   function dissolveSnake() {
+    const skin = currentSkin();
     const max = Math.min(snake.length, 80);
     for (let i = 0; i < max; i++) {
       const seg = snake[i];
@@ -1738,7 +1929,7 @@
         life: 1.15,
         size: 2 + Math.random() * 3.5,
         type: "dot",
-        color: Math.random() < 0.6 ? "#a3e635" : "#22c55e",
+        color: Math.random() < 0.6 ? skin.dissolveA : skin.dissolveB,
         rot: 0,
         vr: 0,
       });
@@ -2148,6 +2339,7 @@
 
   function drawSnake(now) {
     if (!snake.length) return;
+    const skin = currentSkin();
     const t = state === "playing" ? clamp((now - lastStep) / stepInterval(), 0, 1) : 1;
 
     // Animação de entrada: nasce do centro e cresce
@@ -2195,7 +2387,7 @@
       const g1 = trail[trail.length - 7], g2 = trail[trail.length - 14];
       for (const [gp, al] of [[g1, 0.15], [g2, 0.07]]) {
         if (!gp) continue;
-        ctx.fillStyle = `rgba(163, 230, 53, ${al})`;
+        ctx.fillStyle = `rgba(${skin.rgb}, ${al})`;
         ctx.beginPath();
         ctx.arc(gp.x, gp.y, bodyW * 0.55, 0, Math.PI * 2);
         ctx.fill();
@@ -2205,7 +2397,7 @@
     // Halo neon externo (aditivo)
     ctx.save();
     ctx.globalCompositeOperation = "lighter";
-    ctx.strokeStyle = `rgba(163, 230, 53, ${0.18 * s})`;
+    ctx.strokeStyle = `rgba(${skin.rgb}, ${0.18 * s})`;
     ctx.lineWidth = bodyW * 1.7;
     ctx.stroke(path);
     // Halo externo na cor do bioma atual: amarra a serpente ao palco
@@ -2269,12 +2461,12 @@
       ctx.restore();
     }
 
-    // Corpo com gradiente rico: verde-limão -> verde -> verde-azulado
+    // Corpo com gradiente rico na paleta da skin
     const grad = ctx.createLinearGradient(head.x, head.y, tail.x, tail.y);
-    grad.addColorStop(0, "#d9f99d");
-    grad.addColorStop(0.22, "#a3e635");
-    grad.addColorStop(0.6, "#22c55e");
-    grad.addColorStop(1, "#0f766e");
+    grad.addColorStop(0, skin.body0);
+    grad.addColorStop(0.22, skin.body1);
+    grad.addColorStop(0.6, skin.body2);
+    grad.addColorStop(1, skin.body3);
     // Casing escuro fino (define a silhueta contra o brilho do fundo)
     ctx.strokeStyle = "rgba(4, 34, 24, 0.55)";
     ctx.lineWidth = bodyW * 1.06;
@@ -2301,7 +2493,7 @@
       }
       // Pontinha luminosa
       const tip = pts[pts.length - 1];
-      ctx.fillStyle = "rgba(236, 252, 203, 0.85)";
+      ctx.fillStyle = `rgba(${skin.heat}, 0.85)`;
       ctx.beginPath();
       ctx.arc(tip.x, tip.y, Math.max(bodyW * 0.13, 1.2), 0, Math.PI * 2);
       ctx.fill();
@@ -2322,8 +2514,8 @@
         ctx.save();
         ctx.globalCompositeOperation = "lighter";
         const pg = ctx.createRadialGradient(ex2, ey2, 0, ex2, ey2, bodyW * 0.95);
-        pg.addColorStop(0, `rgba(236, 252, 203, ${(0.5 * (1 - f) + 0.18).toFixed(3)})`);
-        pg.addColorStop(1, "rgba(236, 252, 203, 0)");
+        pg.addColorStop(0, `rgba(${skin.heat}, ${(0.5 * (1 - f) + 0.18).toFixed(3)})`);
+        pg.addColorStop(1, `rgba(${skin.heat}, 0)`);
         ctx.fillStyle = pg;
         ctx.beginPath();
         ctx.arc(ex2, ey2, bodyW * 0.95, 0, Math.PI * 2);
@@ -2352,7 +2544,7 @@
     if (fxVisual && !reducedMotion) {
       const scPulse = 0.5 + 0.5 * Math.sin(now / 800);
       const wave = Math.floor(now / 170) % 2; // a onda "caminha" → sensação de serpente deslizando
-      ctx.strokeStyle = `rgba(236, 252, 203, ${(0.07 + 0.07 * scPulse).toFixed(3)})`;
+      ctx.strokeStyle = `rgba(${skin.heat}, ${(0.07 + 0.07 * scPulse).toFixed(3)})`;
       ctx.lineWidth = Math.max(cellSize * 0.045, 1);
       for (let i = 2; i < pts.length; i++) {
         if (i % 2 !== wave) continue;
@@ -2374,9 +2566,9 @@
 
     // Brilho interno (núcleo mais claro ao longo de todo o corpo)
     const inner = ctx.createLinearGradient(head.x, head.y, tail.x, tail.y);
-    inner.addColorStop(0, "rgba(254, 255, 214, 0.5)");
-    inner.addColorStop(0.5, "rgba(217, 249, 157, 0.22)");
-    inner.addColorStop(1, "rgba(217, 249, 157, 0)");
+    inner.addColorStop(0, skin.glass0);
+    inner.addColorStop(0.5, skin.glass1);
+    inner.addColorStop(1, `rgba(${skin.glass2}, 0)`);
     ctx.strokeStyle = inner;
     ctx.lineWidth = bodyW * 0.42;
     ctx.stroke(path);
@@ -2454,19 +2646,20 @@
 
     // Cabeça com glow e volume (gradiente radial)
     ctx.save();
-    ctx.shadowColor = "rgba(163, 230, 53, 0.55)";
+    const skin = currentSkin();
+    ctx.shadowColor = `rgba(${skin.rgb}, 0.55)`;
     ctx.shadowBlur = cellSize * 0.7;
     const hg = ctx.createRadialGradient(hp.x - hr * 0.35, hp.y - hr * 0.35, hr * 0.2, hp.x, hp.y, hr);
-    hg.addColorStop(0, "#ecfccb");
-    hg.addColorStop(0.55, "#d9f99d");
-    hg.addColorStop(1, "#84cc16");
+    hg.addColorStop(0, skin.head0);
+    hg.addColorStop(0.55, skin.head1);
+    hg.addColorStop(1, skin.head2);
     ctx.fillStyle = hg;
     ctx.beginPath();
     // Cabeça em elipse alongada na direção do movimento (mais "cobrinha")
     ctx.ellipse(hp.x, hp.y, hr * 1.28, hr, Math.atan2(ey, ex), 0, Math.PI * 2);
     ctx.fill();
     // Aro de definição da cabeça (silhueta legível contra o fundo brilhante)
-    ctx.strokeStyle = "rgba(217, 249, 157, 0.45)";
+    ctx.strokeStyle = `rgba(${skin.rim}, 0.45)`;
     ctx.lineWidth = Math.max(cellSize * 0.045, 1);
     ctx.stroke();
     // Brilho especular na "testa" (na ponta da direção do movimento)
@@ -2581,7 +2774,7 @@
       const s = trail[i];
       const alpha = s.a * s.a * (speedActive ? 0.5 : 0.3);
       if (alpha <= 0.004) continue;
-      ctx.strokeStyle = `rgba(${speedActive ? "103, 232, 249" : "74, 222, 128"}, ${alpha.toFixed(3)})`;
+      ctx.strokeStyle = `rgba(${speedActive ? "103, 232, 249" : currentSkin().rgb}, ${alpha.toFixed(3)})`;
       ctx.lineWidth = Math.max(cellSize * 0.34 * s.a, 0.5);
       ctx.beginPath();
       ctx.moveTo(trail[i].x, trail[i].y);
@@ -2946,6 +3139,7 @@
         lastStep = now; // hit-stop (level up)
       } else {
         runMs += dt;
+        biomeMs[biomeIdx] += dt; // tempo dentro do bioma atual
         let guard = 0;
         while (now - lastStep >= stepInterval() && guard < 5 && state === "playing") {
           step();
@@ -2985,6 +3179,8 @@
   resizeCanvas();
   if (optNickStart) optNickStart.value = loadNick();
   updateStartGate();
+  syncPauseAria(); // estado inicial: nada pausado
+  syncHardcoreUI();
   requestAnimationFrame(loop);
   loadGlobalLeaderboard(); // busca o recorde mundial assim que o jogo abre
 
@@ -2994,6 +3190,9 @@
         getObstacles: () => obstacles, getEatStreak: () => eatStreak, getLevel: () => level,
         getDir: () => dir, getSpeedActive: () => speedActive, getFoodExpiresAt: () => foodExpiresAt,
         getStats: () => stats,
+        getSkin: () => currentSkin().id,
+        setSkinChoice: v => (skinChoice = v),
+        setHardcore: v => (hardcore = v),
         setSnake: v => (snake = v), setDir: v => (dir = v), setFood: v => (food = v),
         setObstacles: v => (obstacles = v), setSpeedActive: v => (speedActive = v),
         step, resetGame, placeFood, gameOver, spawnObstacles, comboMult, stepInterval });

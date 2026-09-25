@@ -237,5 +237,22 @@ T.gameOver();
 const after = JSON.parse(localStorage.getItem("snakeStats") || "{}").games | 0;
 ok(after === before + 1, "gameOver incrementa o total de partidas");
 
+// N: modo hardcore — sem combo e só maçãs
+T.setHardcore(true);
+ok(T.comboMult(6) === 1, "hardcore: comboMult sempre 1");
+T.resetGame();
+ok(T.getFood().kind === "apple", "hardcore: placeFood só gera maçã comum");
+T.setHardcore(false);
+
+// O: skins — padrão sempre disponível, bloqueada cai para o padrão
+ok(T.getSkin() === "lime", "skin padrão é o Neon Clássico");
+T.setSkinChoice("crystal");
+ok(T.getSkin() === "lime", "skin bloqueada cai para o padrão");
+T.setSkinChoice("lime");
+
+// P: estatísticas por bioma existem e acumulam
+const bio = T.getStats().biomes;
+ok(bio && (bio[0].best | 0) >= 0 && typeof bio[0].eaten === "number", "stats.biomes populado");
+
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail === 0 ? 0 : 1);

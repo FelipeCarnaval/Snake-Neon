@@ -3,6 +3,7 @@
   "short_name": "Snake",
   "description": "Jogo da cobrinha neon com combos, gemas douradas, turbo, biomas e trilha procedural.",
   "lang": "pt-BR",
+  "id": "./",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",

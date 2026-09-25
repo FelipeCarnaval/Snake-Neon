@@ -28,6 +28,7 @@
   <main class="game-container">
     <header class="hud">
       <div class="logo" aria-hidden="true" translate="no">SNAKE</div>
+      <span class="hc-badge hidden" id="hcBadge">HARDCORE</span>
       <div class="hud-right">
         <div class="scores">
           <div class="score-box" id="scoreBox">
@@ -203,6 +204,11 @@
           <span class="switch" aria-hidden="true"></span>
         </label>
         <label class="setting-row">
+          <span class="s-main"><strong>Modo hardcore</strong><small>Sem combo, gemas ou turbo — só maçãs e coragem</small></span>
+          <input type="checkbox" id="optHard" />
+          <span class="switch" aria-hidden="true"></span>
+        </label>
+        <label class="setting-row">
           <span class="s-main"><strong>Seu nome</strong><small>Aparece no placar global</small></span>
           <input type="text" class="nick-input" id="optNick" maxlength="12" autocomplete="off" spellcheck="false" placeholder="Nome…" aria-label="Seu nome (aparece no placar global)" />
         </label>
@@ -236,6 +242,10 @@
             <option value="neon">Neon</option>
           </select>
         </label>
+        <label class="setting-row">
+          <span class="s-main"><strong>Skin da cobra</strong><small>Desbloqueie com conquistas</small></span>
+          <select class="select-mini" id="optSkin" aria-label="Skin da cobra"></select>
+        </label>
       </div>
       <div class="settings-leaderboard">
         <h3>Placar global</h3>
@@ -259,6 +269,11 @@
       <div class="settings-achievements">
         <h3>Conquistas</h3>
         <ul class="ach-list" id="achievementsList"></ul>
+      </div>
+      <div class="settings-biomes">
+        <h3>Estatísticas por bioma</h3>
+        <ul class="lb-list" id="biomeList"></ul>
+        <p class="lb-hint">Os biomas trocam a cada 5 níveis — veja seu progresso em cada cenário.</p>
       </div>
     </section>
   </div>
