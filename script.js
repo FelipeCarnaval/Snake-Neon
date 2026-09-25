@@ -89,6 +89,7 @@
   const hcBadge = document.getElementById("hcBadge");
   const optHard = document.getElementById("optHard");
   const optSkin = document.getElementById("optSkin");
+  const skinSwatches = document.getElementById("skinSwatches");
   const comboChip = document.getElementById("comboChip");
   const comboText = document.getElementById("comboText");
   const comboBarFill = document.getElementById("comboBarFill");
@@ -792,6 +793,20 @@
       }
       if (sk.id === skinChoice) op.selected = true;
       optSkin.appendChild(op);
+    }
+    renderSkinPreview();
+  }
+
+  function renderSkinPreview() {
+    if (!skinSwatches || !optSkin) return;
+    const picked = SNAKE_SKINS.find((sk) => sk.id === optSkin.value);
+    const sk = picked && skinUnlocked(picked) ? picked : SNAKE_SKINS[0];
+    skinSwatches.textContent = "";
+    for (const c of [sk.body0, sk.body1, sk.body2, sk.body3, sk.head1, sk.head2]) {
+      const t = document.createElement("i");
+      t.className = "swatch";
+      t.style.background = c;
+      skinSwatches.appendChild(t);
     }
   }
 
@@ -1728,6 +1743,7 @@
       if (!sk) { rebuildSkinOptions(); return; }
       skinChoice = sk.id;
       saveChoice(SKIN_KEY, skinChoice);
+      renderSkinPreview();
     });
   }
 
@@ -2294,45 +2310,69 @@
   function drawObstacles(now) {
     if (!obstacles.length) return;
     const pulse = reducedMotion ? 0.5 : 0.5 + 0.5 * Math.sin(now / 750);
-    const rgb = biomeTint || "140, 165, 195";
+    const rgb = biomeTint || "148, 197, 255"; // aço iluminado nos 5 primeiros níveis
     for (const o of obstacles) {
       const ox = o.x * cellSize;
       const oy = o.y * cellSize;
       // Surgimento: o bloco "cresce" do centro e acende em ~300 ms
       const born = obstacleBornAt.get(o.x + "," + o.y) || 0;
       const st = fxVisual && !reducedMotion ? clamp((now - born) / 300, 0, 1) : 1;
-      const grow = 1 - Math.pow(1 - st, 3); // easeOutCubic: 1 → 0
-      const inset = cellSize * (0.14 + grow * 0.3);
-      const pad = cellSize * 0.05 * pulse;
-      const sz = cellSize - inset * 2;
+      const grow = 1 - Math.pow(1 - st, 3); // easeOutCubic: 0 → 1
+      const inset = cellSize * (0.12 + grow * 0.28);
+      const r = cellSize * 0.2;
+      const core = cellSize - inset * 2;
+      const x0 = ox + inset, y0 = oy + inset;
+      const cx = ox + cellSize / 2, cy = oy + cellSize / 2;
+
+      // Halo difuso externo: destaca o bloco contra qualquer cenário (mesmo grade/neon)
       ctx.save();
-      ctx.globalAlpha = 0.35 + 0.65 * st;
-      // Núcleo escuro com leve relevo
-      ctx.fillStyle = "rgba(15, 26, 45, 0.95)";
-      if (ctx.roundRect) { ctx.beginPath(); ctx.roundRect(ox + inset - pad, oy + inset - pad, sz + pad * 2, sz + pad * 2, cellSize * 0.2); ctx.fill(); }
-      else ctx.fillRect(ox + inset - pad, oy + inset - pad, sz + pad * 2, sz + pad * 2);
-      // Bevel de aço: brilho no canto superior e sombra no inferior (relevo 3D)
-      const bv = ctx.createLinearGradient(ox, oy, ox + cellSize, oy + cellSize);
-      bv.addColorStop(0, "rgba(255, 255, 255, 0.10)");
-      bv.addColorStop(0.45, "rgba(255, 255, 255, 0.02)");
-      bv.addColorStop(1, "rgba(0, 0, 0, 0.34)");
-      ctx.fillStyle = bv;
-      if (ctx.roundRect) { ctx.beginPath(); ctx.roundRect(ox + inset - pad, oy + inset - pad, sz + pad * 2, sz + pad * 2, cellSize * 0.2); ctx.fill(); }
-      else ctx.fillRect(ox + inset - pad, oy + inset - pad, sz + pad * 2, sz + pad * 2);
-      // Borda neon pulsante
-      ctx.strokeStyle = `rgba(${rgb}, ${0.4 + 0.4 * pulse})`;
-      ctx.lineWidth = Math.max(cellSize * 0.06, 1.5);
-      if (ctx.roundRect) { ctx.beginPath(); ctx.roundRect(ox + inset, oy + inset, sz, sz, cellSize * 0.2); ctx.stroke(); }
-      else { ctx.strokeRect(ox + inset, oy + inset, sz, sz); }
-      // Cruz interna sutil (reforço de aço)
-      ctx.strokeStyle = `rgba(${rgb}, ${0.14 + 0.12 * pulse})`;
-      ctx.lineWidth = Math.max(cellSize * 0.04, 1);
+      ctx.globalCompositeOperation = "lighter";
+      const halo = ctx.createRadialGradient(cx, cy, core * 0.2, cx, cy, cellSize * 0.95);
+      halo.addColorStop(0, `rgba(${rgb}, ${(0.30 * st).toFixed(3)})`);
+      halo.addColorStop(1, `rgba(${rgb}, 0)`);
+      ctx.fillStyle = halo;
       ctx.beginPath();
-      ctx.moveTo(ox + inset + sz * 0.25, oy + inset + sz * 0.25);
-      ctx.lineTo(ox + inset + sz * 0.75, oy + inset + sz * 0.75);
-      ctx.moveTo(ox + inset + sz * 0.75, oy + inset + sz * 0.25);
-      ctx.lineTo(ox + inset + sz * 0.25, oy + inset + sz * 0.75);
+      ctx.arc(cx, cy, cellSize * 0.95, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.restore();
+
+      ctx.save();
+      ctx.globalAlpha = 0.6 + 0.4 * st; // nunca fica invisível durante o spawn
+      // Núcleo com volume: gradiente vertical, legível até sobre fundo claro
+      const body = ctx.createLinearGradient(0, y0, 0, y0 + core);
+      body.addColorStop(0, "rgba(46, 66, 116, 0.96)");
+      body.addColorStop(0.5, "rgba(17, 29, 53, 0.98)");
+      body.addColorStop(1, "rgba(7, 14, 28, 0.98)");
+      ctx.fillStyle = body;
+      if (ctx.roundRect) { ctx.beginPath(); ctx.roundRect(x0, y0, core, core, r); ctx.fill(); }
+      else ctx.fillRect(x0, y0, core, core);
+
+      // Borda neon espessa e pulsante: a leitura principal de "muro"
+      const ringW = Math.max(cellSize * 0.09, 2);
+      ctx.strokeStyle = `rgba(${rgb}, ${(0.7 + 0.3 * pulse).toFixed(3)})`;
+      ctx.lineWidth = ringW;
+      if (ctx.roundRect) { ctx.beginPath(); ctx.roundRect(x0 + ringW / 2, y0 + ringW / 2, core - ringW, core - ringW, Math.max(r - ringW / 2, 2)); ctx.stroke(); }
+      else ctx.strokeRect(x0 + ringW / 2, y0 + ringW / 2, core - ringW, core - ringW);
+
+      // Rim light superior: um fio de aço claro que separa o bloco do fundo
+      ctx.strokeStyle = "rgba(226, 232, 240, 0.4)";
+      ctx.lineWidth = Math.max(cellSize * 0.025, 1);
+      if (ctx.roundRect) { ctx.beginPath(); ctx.roundRect(x0 + ringW + 1, y0 + ringW + 1, core - 2 * ringW - 2, Math.max(core * 0.22, 1), 4); ctx.stroke(); }
+      else ctx.strokeRect(x0 + ringW + 1, y0 + ringW + 1, core - 2 * ringW - 2, Math.max(core * 0.22, 1));
+
+      // Cruz de "bloqueio" + núcleo aceso: legíveis mesmo em tiles brilhantes
+      ctx.strokeStyle = `rgba(${rgb}, ${(0.34 + 0.2 * pulse).toFixed(3)})`;
+      ctx.lineWidth = Math.max(cellSize * 0.045, 1);
+      ctx.beginPath();
+      ctx.moveTo(x0 + core * 0.26, y0 + core * 0.26);
+      ctx.lineTo(x0 + core * 0.74, y0 + core * 0.74);
+      ctx.moveTo(x0 + core * 0.74, y0 + core * 0.26);
+      ctx.lineTo(x0 + core * 0.26, y0 + core * 0.74);
       ctx.stroke();
+      ctx.fillStyle = `rgba(255, 255, 255, ${(0.4 + 0.2 * pulse).toFixed(3)})`;
+      ctx.beginPath();
+      ctx.arc(cx, cy, Math.max(cellSize * 0.05, 1.2), 0, Math.PI * 2);
+      ctx.fill();
       ctx.restore();
     }
   }
